@@ -1,0 +1,46 @@
+
+hmckc - ppmckc release 9 for HuSIC
+   modified by BouKiCHi
+
+ 2015-09-24 version 9
+  improved volume stuff.
+
+ 2015-09-14 version 8
+  imporved portamento.
+
+ 2015-09-14 version 7
+  added portamento.
+
+ 2015-09-12 version 6
+  added slur.
+
+ 2007/04/21 version 4
+  improved volume mask in output process
+  added #OCTAVE-OFS
+
+ 2007/04/16 version 3
+  improved XPCM support
+
+ 2006/12/31 version 2
+  fixed label stuff
+
+ 2006/12/30 version 1
+
+--------------------
+List of available instructions in HuSIC
+#OCTAVE-OFS : octave offset
+@XPCM : XPCM definition
+@WT   : WaveTone definition
+FSOF  : FMLFO off
+FS    : FMLFO on
+FF    : FMLFO frequency
+N     : NOISE sw
+PL    : Left pan
+PR    : Right pan
+PC    : Center Pan
+P     : Pan
+W     : Change WaveTone
+M     : XPCM sw ( M0 = off , M1 = on )
+
+&     : slur (ex. c&e&g)
+_     : portamento (ex. c8_g)

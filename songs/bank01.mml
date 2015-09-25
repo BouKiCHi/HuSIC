@@ -1,0 +1,7 @@
+; bank01.mml
+; test for bank change
+
+A  @t24,4 PC14 L
+A  W0 v28 o3 l8 cdefgfedcegecrcr
+A  NB
+A  W0 v28 o3 l8 cdefgfedcegecrcr

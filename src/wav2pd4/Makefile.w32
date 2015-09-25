@@ -1,0 +1,31 @@
+
+EXESFX = .exe
+
+TARGET = xpcm$(EXESFX)
+OBJS = xpcm.o
+
+INSTDIR = ../../bin
+
+CFLAGS = -Wall
+LDFLAGS = 
+
+CC = i386-mingw32-gcc
+LD = $(CC)
+RM = rm -f
+CP = cp
+
+%.o : %.c 
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(TARGET) : $(OBJS)
+	$(LD) $(LDFLAGS) -o $@ $^
+
+clean : 
+	$(RM) $(OBJS)
+	$(RM) $(TARGET)
+
+
+install : $(TARGET)
+	$(CP) $(TARGET) $(INSTDIR)
+
+all : $(TARGET)

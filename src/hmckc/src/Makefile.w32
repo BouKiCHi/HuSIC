@@ -1,0 +1,16 @@
+# mckc makefile for MinGW and POSIX
+
+WIN32 = 1
+# DEBUG = 1
+
+CC = i586-mingw32-gcc
+CFLAGS = --input-charset=utf-8 --exec-charset=cp932
+EXEDIR=
+INST_DIR = ../../../bin
+CP = cp
+RM = rm -f
+
+# win32
+EXESFX = .exe
+
+include common.mak
