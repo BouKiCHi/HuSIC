@@ -1088,9 +1088,8 @@ void getTone( LINE *lptr )
 					break;
 				  default:
 					num = Asc2Int( ptr, &cnt );
-					//vrc6用に制限を外す(内蔵矩形波、MMC5は3まで)
-					//if( cnt != 0 && (0 <= num && num <= 3) ) {
-					if( cnt != 0 && (0 <= num && num <= 7) ) {
+					// HuSIC向けに変更
+					if( cnt != 0 && (0 <= num && num <= 255) ) {
 						tone_tbl[no][i] = num;
 						tone_tbl[no][0]++;
 						ptr += cnt;
@@ -3818,6 +3817,8 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 		{ "FS",   _FMLFO_SET,	(HULFO_TRK) },
 		{ "FF",   _FMLFO_FRQ,	(HULFO_TRK) },
 
+		{ "MV", _MASVOL,			(ALLTRACK) },
+
 		{ "N", _NOISE_SW,		(HUNOISE_TRK) },
 		{ "PL", _L_PAN,			(ALLTRACK) },
 		{ "PR", _R_PAN,			(ALLTRACK) },
@@ -3979,6 +3980,7 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 					}
 					break;
 				/* コマンドパラメータが0個の物 */
+					case _FMLFO_OFF:
 					case _PORTMENT: /* ポルタメント */
 				  case _SLAR:			/* スラー */
 				  case _SONG_LOOP:			/* 曲ループ */
@@ -4145,6 +4147,21 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
 					}
 					break;
+					case _MASVOL:			/* マスター音量指定 HuSIC */
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					if( (mml[i].enable&(1<<trk)) != 0 ) {
+						if( ((1<<trk) & (ALLTRACK) && (cmd->param[0] < 0 || cmd->param[0] > 255)))
+						 {
+							dispError( ABNORMAL_VOLUME_VALUE, lptr[line].filename, line );
+							cmd->cmd = 0;
+							cmd->line = 0;
+						} else {
+							volume_flag = cmd->param[0];
+						}
+					} else {
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+					}
+					break;
 				  case _HARD_ENVELOPE:
 					ptr = setCommandBuf( 2, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
@@ -4230,7 +4247,8 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 						dispWarning( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
 					}
 					break;
-					 case _FMLFO_FRQ:			/* LFO Freq Command */
+
+					case _FMLFO_FRQ:			/* LFO Freq Command */
 					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if(cmd->param[0] < 0 || cmd->param[0] > 255 ) {
@@ -5460,6 +5478,12 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 				ps.env = (cmd->param[0]&0x1f)|0x80;
 				cmd++;
 				break;
+				case _MASVOL:
+				putAsm( fp, MCK_MASVOL );
+				putAsm( fp, cmd->param[0]&0xff );
+				cmd++;
+				break;
+
 			  case _HARD_ENVELOPE:
 				cmd++;
 				break;

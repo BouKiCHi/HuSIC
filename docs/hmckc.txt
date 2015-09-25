@@ -2,6 +2,10 @@
 hmckc - ppmckc release 9 for HuSIC
    modified by BouKiCHi
 
+ 2015-09-26 version 10
+  improved tone envelope stuff.
+  added master volume command.
+
  2015-09-24 version 9
   improved volume stuff.
 
@@ -44,3 +48,4 @@ M     : XPCM sw ( M0 = off , M1 = on )
 
 &     : slur (ex. c&e&g)
 _     : portamento (ex. c8_g)
+MV    : Master volume (ex. MV$33)

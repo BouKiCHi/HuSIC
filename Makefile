@@ -3,7 +3,7 @@
 #
 
 # command arguments:
-# make [hmckc|xpcm|huc]
+# make [hmckc|xpcm|huc|husic]
 #
 
 DATE = $(shell date +"%y%m%d")
@@ -28,6 +28,10 @@ endif
 ZIP = $(ZIPNAME)
 
 all : hmckc
+
+help :
+	@echo "usage make [hmckc|xpcm|huc|husic]"
+
 
 hmckc_clean :
 	cd src/hmckc/src/ ; make clean

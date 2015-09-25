@@ -18,6 +18,8 @@ if not exist "%FIN%.h" goto end
 
 copy makehes.pce "%FOUT%.hes"
 
+if "%2" == "DEBUG" goto debug_end
+
 del makehes.pce
 del makehes.sym
 del makehes.lst
@@ -25,6 +27,9 @@ del define.inc
 del effect.h
 del "%FIN%.h"
 
+goto end
+
+:debug_end
+@echo DEBUG mode
 
 :end
-

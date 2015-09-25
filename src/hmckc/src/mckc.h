@@ -235,8 +235,8 @@ enum {
 	_FMLFO_FRQ,
 
 	_SLAR_ONE,
-
 	_PORTMENT,
+	_MASVOL,
 
 	_REST		= 0xfc,
 	_NOP		= 0xfe,
@@ -286,6 +286,7 @@ enum {
 enum {
 	MCK_REPEAT_END = 0xa0,
 	MCK_REPEAT_ESC = 0xa1,
+	MCK_MASVOL = 0xe8,
 	MCK_SLAR = 0xe9,
 	MCK_PORT = 0xeb,
 	MCK_GOTO = 0xee,

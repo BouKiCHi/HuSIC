@@ -6,7 +6,7 @@
 
 #include	"mckc.h"
 
-#define HMCKC_VER "Modified for HuSIC Version 9\n"
+#define HMCKC_VER "Modified for HuSIC Version 10\n"
 
 
 extern void splitPath( const char *ptr, char *path, char *name, char *ext );
@@ -36,7 +36,6 @@ extern	int		message_flag;			// 表示メッセージの出力設定( 0:Jp 1:En )
 void dispHelpMessage( void )
 {
 	if( message_flag == 0 ) {
-#ifdef __MINGW32__
 		puts(	"使用方法:hmckc [switch] InputFile.mml [OutputFile.h]\n"
 			"もしくは:hmckc [switch] -u InputFile1.mml InputFile2.mml ... \n"
 				"\t[switch]\n"
@@ -47,18 +46,6 @@ void dispHelpMessage( void )
 				"\t-w      : Warningメッセージを表示しません\n"
 				"\t-u      : 複数曲登録NSF作成\n"
 	    );
-#else
-		puts(	"使用方法:hmckc [switch] InputFile.mml [OutputFile.h]\n"
-			"もしくは:hmckc [switch] -u InputFile1.mml InputFile2.mml ... \n"
-				"\t[switch]\n"
-				"\t-h -?   : ヘルプを表示\n"
-				"\t-i      : 音色/エンベロープファイルに曲データを追加する\n"
-				"\t-m<num> : エラー/ワーニング表示の選択(0:Jpn 1:Eng)\n"
-				"\t-o<str> : 音色/エンベロープファイルのファイル名を<str>にする\n"
-				"\t-w      : Warningメッセージを表示しません\n"
-				"\t-u      : 複数曲登録NSF作成\n"
-	    );
-#endif
 
 	} else {
 		puts(	"Usage:hmckc [switch] InputFile.mml [OutputFile.h]\n"

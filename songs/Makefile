@@ -4,6 +4,7 @@ HES += sample.hes
 HES += sample_te.hes
 HES += sample_port.hes
 HES += sample_slar.hes
+HES += sample_mv.hes
 
 all : $(HES)
 

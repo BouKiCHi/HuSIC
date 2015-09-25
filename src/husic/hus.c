@@ -88,6 +88,7 @@ char	ch_vol[MAX_CH];
 char	ch_bank[MAX_CH];
 
 char	ch_lastvol[MAX_CH];
+char	ch_lasttone[MAX_CH];
 
 char  ch_efx[MAX_CH];
 
@@ -203,6 +204,12 @@ int num;
 	int	i;
 	char	*pcmpos;
 
+	/* 前回との比較 */
+	if (ch_lasttone[reg_ch] == num)
+		return;
+
+	ch_lasttone[reg_ch] = num;
+
 	pcmpos = *(pcewav[0] + (num << 1));
 
 	/* オフにしないと正しく書き込めない */
@@ -240,6 +247,7 @@ drv_init()
 		note_sw[i] = 0xff;
 		panpod[i] = 0xff;
 		pitch_sw[i] = 0xff;
+		ch_lasttone[i] = 0xff;
 
 		seq_pos[i] = *(sound_dat[0] + (i<<1));
 
@@ -643,6 +651,19 @@ SEQ_E9:
 	jmp endpoint
 #endasm
 
+#asm
+SEQ_E8:
+	nop
+#endasm
+
+/* $E8: マスターボリューム 引数:*/
+ j = *(++seq_ptr);
+ poke(SND_VOL, j);
+ seq_ptr++;
+
+#asm
+	jmp endpoint
+#endasm
 
 #asm
 SEQ_EC:
@@ -654,7 +675,6 @@ SEQ_EC:
 		poke( SND_LFO , j );
 
 #asm
-SEQ_E8:
 SEQ_EA:
 endpoint:
 #endasm
