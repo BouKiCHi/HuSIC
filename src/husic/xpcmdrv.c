@@ -22,15 +22,15 @@ char xpcm_bank_save;
 char xpcm_flags;
 char xpcm_play_flags;
 
-/* 
+/*
 
-  XPCM 変数表 version 0.1 
+  XPCM 変数表 version 0.1
 
   xpcm_ptr = アドレス
   xpcm_len = 長さ
   xpcm_bank = バンク
   xpcm_shift = シフト
-  
+
   0x00  ... stop
   0x01  ... play
 
@@ -40,23 +40,23 @@ pcm_play_data ( ch , addr , len , bank )
 int ch , addr , len;
 char bank;
 {
-	switch ( ch ) 
+	switch ( ch )
 	{
 		case XPCM_CH:
-			
+
 			xpcm_addr[0] = addr;
-			xpcm_len[0]  = len; 
+			xpcm_len[0]  = len;
 			xpcm_bank[0] = bank;
-			xpcm_shift[0] = 0;	
+			xpcm_shift[0] = 0;
 
 		break;
 		case XPCM2_CH:
-			
+
 			xpcm_addr[1] = addr;
-			xpcm_len[1]  = len; 
+			xpcm_len[1]  = len;
 			xpcm_bank[1] = bank;
 			xpcm_shift[1] = 0;
-			
+
 		break;
 	}
 	pcm_on( ch );
@@ -73,10 +73,10 @@ char ch;
 	{
 		ena_irq_tmr();
 	}
-		
+
 	if ( ch == XPCM_CH )
 		xpcm_play_flags |= XPCM_FLAG;
-		
+
 	if ( ch == XPCM2_CH )
 		xpcm_play_flags |= XPCM2_FLAG;
 
@@ -92,7 +92,7 @@ char ch;
 
 	if ( ch == XPCM2_CH )
 		xpcm_play_flags &= XPCM2_MASK;
-		
+
 	if ( ! xpcm_play_flags )
 	{
 		dis_irq_tmr();
@@ -105,13 +105,13 @@ char ch;
 /*	switch ( ch )
 	{
 		case XPCM_CH:
-			xpcm_len[0]  = 0; 
+			xpcm_len[0]  = 0;
 		break;
 		case XPCM2_CH:
 			xpcm_len[1]  = 0;
 		break;
 	}
-*/	
+*/
 	pcm_off ( ch );
 }
 
@@ -121,10 +121,10 @@ char ch;
 {
 	if ( ch == XPCM_CH )
 		return xpcm_flags & XPCM_FLAG;
-	
+
 	if ( ch == XPCM2_CH )
 		return xpcm_flags & XPCM2_FLAG;
-		
+
 	return 0;
 }
 
@@ -137,69 +137,69 @@ char mode;
 	{
 		if ( ch == XPCM_CH )
 			xpcm_flags |= XPCM_FLAG;
-	
-		if ( ch == XPCM2_CH) 
+
+		if ( ch == XPCM2_CH)
 			xpcm_flags |= XPCM2_FLAG;
 	}
 	else
 	{
 		if ( ch == XPCM_CH )
 			xpcm_flags &= XPCM_MASK;
-	
+
 		if ( ch == XPCM2_CH )
 			xpcm_flags &= XPCM2_MASK;
 	}
 }
 
 #asm
-	
+
 	REG_SEL: .equ $0800
 	REG_DAC: .equ $0806
-	
+
 
 	; _xpeeki_b <addr>
 	;
 	; in  : addr = address
 	; out : reg.a
-	
+
 	.macro _xpeeki_b
 		__ldwi	\1
 		__stw	<__ptr
 		lda		[__ptr]
 
 	.endm
-	
+
 	; _xpeek_b <addr>
 	;
 	; in  : addr = address
 	; out : reg.a
-	
+
 	.macro _xpeek_b
 		__ldw	\1
 		__stw	<__ptr
 		lda		[__ptr]
 
 	.endm
-	
-	
+
+
 	; _xpokei_b <addr>
 	;
 	; in : addr = address
 	;    : reg.a = value
-	
+
 	.macro _xpokei_b
 		pha
 		__ldwi	\1
 		__stw	<__ptr
 		pla
 		sta		[__ptr]
-	.endm	
-	
+	.endm
+
 	; _xpoke_b <addr>
 	;
 	; in : addr = address
 	;    : reg.a = value
-	
+
 	.macro _xpoke_b
 		pha
 		__ldw	\1
@@ -209,44 +209,44 @@ char mode;
 	.endm
 
 
-	;_pcm_proc < ch , index > 
+	;_pcm_proc < ch , index >
 	;
 	; in : ch = 物理チャンネル
 	;    : index = 変数の相対位置
-	
+
 	.macro _pcm_proc
-	
+
 		; チャンネル選択
-		lda		#\1 
+		lda		#\1
 		_xpokei_b REG_SEL
 
 		; バンク切り替え
 		tma		#3
 		sta		_xpcm_bank_save
-		
+
 		lda		_xpcm_bank + \2
 		tam		#3
 
 		; 4bitシフト
 		lda		_xpcm_shift + \2
 		beq		.high_\2
-	
+
 	.low_\2:
-	
+
 		_xpeek_b _xpcm_addr + (\2 * 2)
 		asl		A
-		and		#$1f
-		
+		and		#$1e
+
 		pha
 		__ldw   _xpcm_addr + (\2 * 2)
 		__addwi 1
 		__stw	_xpcm_addr + (\2 * 2)
-		
+
 		__ldw   _xpcm_len + (\2 * 2)
 		__subwi 1
 		__stw	_xpcm_len + (\2 * 2)
 
-		
+
 		pla
 
 		jmp		.store_\2
@@ -258,11 +258,11 @@ char mode;
 		lsr		A
 		lsr		A
 		and		#$1e
-		
+
 	.store_\2:
 		; DACへ出力
 		_xpokei_b REG_DAC
-		
+
 		; バンク切り替えを戻す
 		lda		_xpcm_bank_save
 		tam		#3
@@ -271,25 +271,25 @@ char mode;
 		lda		_xpcm_shift + \2
 		eor		#1
 		sta		_xpcm_shift + \2
-			
+
 		__ldw   _xpcm_len + (\2 * 2)
 		stx		<__temp
 		ora		<__temp
-		
+
 		bne		.end_\2
-		
+
 		; PCMをオフにする
 		__ldwi	\1
-		call	_pcm_off		
-		
+		call	_pcm_off
+
 	.end_\2:
-	
+
 
 	.endm
-	
+
 
 	;
-	; pcm_intr 
+	; pcm_intr
 	;
 
 	.proc _pcm_intr
@@ -298,7 +298,7 @@ char mode;
 		lda		_xpcm_play_flags
 		and		#$01
 		beq		.end_ch1
-		jmp		.ch1_proc	
+		jmp		.ch1_proc
 	.end_ch1:
 		lda		_xpcm_play_flags
 		and		#$02
@@ -310,9 +310,9 @@ char mode;
 		lda		_reg_ch
 		_xpokei_b REG_SEL
 		rts
-	
+
 	; process
-	
+
 	.ch1_proc:
 		_pcm_proc 5,0
 		jmp		.end_ch1
@@ -331,7 +331,7 @@ char mode;
 pcm_intr_c()
 {
 	char out;
-	
+
 	if (xpcm_play_flags & XPCM_FLAG)
 	{
 		chg_pcmbank(xpcm_bank[0]);
@@ -343,18 +343,18 @@ pcm_intr_c()
 		{
 			out = (peek(xpcm_addr[0]++) << 1) & 0x1e;
 
-			xpcm_len[0]--; 
-			
-			if (!xpcm_len[0]) 
+			xpcm_len[0]--;
+
+			if (!xpcm_len[0])
 				pcm_off(XPCM_CH);
 		}
 
 		xpcm_shift[0] ^= 0x01;
-		
+
 		poke(SND_SEL,  XPCM_CH);
 		poke(SND_WAV, out);
 	}
-	
+
 	if (xpcm_play_flags & XPCM2_FLAG)
 	{
 		chg_pcmbank(xpcm_bank[1]);
@@ -368,17 +368,17 @@ pcm_intr_c()
 			out = (peek(xpcm_addr[1]++) << 1) & 0x1e;
 
 			xpcm_len[1]--;
-			
+
 			if (!xpcm_len[1])
 				pcm_off(XPCM2_CH);
 		}
 
 		xpcm_shift[1] ^= 0x01;
-		
+
 		poke(SND_SEL, XPCM2_CH);
 		poke(SND_WAV, out);
 	}
-	
+
 	poke(SND_SEL, reg_ch);
 }
 */
@@ -436,15 +436,14 @@ init_pcmdrv()
 		/* int */
 		xpcm_addr[i] =
 		xpcm_len[i]  = 0x0000;
-		
+
 		/* char */
-		xpcm_shift[i] = 
+		xpcm_shift[i] =
 		xpcm_bank[i] = 0;
 	}
 
-	xpcm_play_flags = 0x00;	
+	xpcm_play_flags = 0x00;
 	xpcm_flags = 0x00;
 
 	set_pcmintr();
 }
-
