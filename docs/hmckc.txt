@@ -2,6 +2,9 @@
 hmckc - ppmckc release 9 for HuSIC
    modified by BouKiCHi
 
+ 2015-09-27 version 11
+  improved slur.
+
  2015-09-26 version 10
   improved tone envelope stuff.
   added master volume command.

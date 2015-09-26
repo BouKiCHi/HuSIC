@@ -4979,6 +4979,32 @@ CMD *getDeltaTime(CMD *cmd, int *delta, int allow_slur) {
 	return cmd;
 }
 
+/*--------------------------------------------------------------
+	次のフレームまでにスラーがあるかを調べる
+ Input:
+	CMD *cmd; 読み始めるコマンドの位置
+ Return:
+  int: スラーがあれば1
+--------------------------------------------------------------*/
+int isSlarUntilNextFrame(CMD *cmd) {
+	int delta = 0;
+	int frame = cmd->frm;
+
+	while(!delta)
+	{
+		delta += (cmd+1)->frm - frame;
+
+		if (cmd->cmd == _SLAR)
+			return 1;
+
+		if(cmd->cmd == _TRACK_END)
+			break;
+
+		cmd++;
+	}
+	return 0;
+}
+
 
 /*--------------------------------------------------------------
  次のキーとデルタタイムを得る
@@ -5822,8 +5848,19 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 					delta_time = 0;
 					cmd = getDeltaTime(cmd, &delta_time, 1);
 
-					gate_time = calcGateTime(delta_time, &(ps.gate_q));
+					// 次にスラーがある場合はqは無視される
+					if (!isSlarUntilNextFrame(cmd))
+					{
+						gate_time = calcGateTime(delta_time, &(ps.gate_q));
+					}
+					else
+					{
+						gate_time = delta_time;
+					}
+
 					left_time = delta_time - gate_time;
+
+					// printf("delta:%d gate:%d left:%d\n", delta_time, gate_time, left_time);
 
 					/* ポルタメント */
 					if (cmd->cmd == _PORTMENT)

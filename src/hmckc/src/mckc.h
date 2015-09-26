@@ -162,7 +162,7 @@ enum {
 	_ENVELOPE,
 	_REL_ENV,
 	_VOLUME,
-	_VOL_PLUS,
+	_VOL_PLUS, // 0x98
 	_VOL_MINUS,
 	_HARD_ENVELOPE,
 	_TONE,
@@ -170,7 +170,7 @@ enum {
 	_REL_ORG_TONE,
 	_SWEEP,
 	_SLAR,
-	_SONG_LOOP,
+	_SONG_LOOP, // 0xa0
 	_REPEAT_ST,
 	_REPEAT_END,
 	_REPEAT_ESC,
