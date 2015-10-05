@@ -8,7 +8,7 @@
 
 #define	MML_MAX			128
 
-/* �e���|�x�[�X -> �t���[���x�[�X�ւ̕ϊ��p�����[�^ */
+/* テンポベース -> フレームベースへの変換パラメータ */
 #define	_BASE			192.0
 #define	_BASETEMPO		75
 
@@ -29,14 +29,14 @@ typedef struct {
 	int		status;
 } HEAD;
 
-/* ���C���X�e�[�^�X */
+/* ラインステータス */
 typedef struct st_line {
-	char	*filename;		/* �t�@�C����							*/
-	int		line;			/* �s�ԍ�								*/
-	int		status;			/* �s�X�e�[�^�X(���Ldefine�Q��)			*/
-	int		param;			/* �p�����[�^(���F/�g���b�N�ԍ�etc.)	*/
-	char	*str;			/* �s������								*/
-	struct st_line	*inc_ptr;		/* �C���N���[�h�t�@�C���̃f�[�^�|�C���^ */
+	char	*filename;		/* ファイル名							*/
+	int		line;			/* 行番号								*/
+	int		status;			/* 行ステータス(下記define参照)			*/
+	int		param;			/* パラメータ(音色/トラック番号etc.)	*/
+	char	*str;			/* 行文字列								*/
+	struct st_line	*inc_ptr;		/* インクルードファイルのデータポインタ */
 } LINE;
 
 #define	_HEADER			1
@@ -76,6 +76,8 @@ typedef struct st_line {
 #define _SET_EFFECT_WAVE	0x2B
 #define	_SET_XPCM_DATA  0x2C  // HuSIC
 #define _SET_WTB_TONE   0x2D  // HuSIC
+#define	_SET_MULTIENV		0x2E // HuSIC
+
 
 #define	_TRACK			0x40
 #define	_SAME_LINE		0x80000000
@@ -126,19 +128,32 @@ typedef struct st_line {
 // HuSIC
 #define	_WTB_TONE_MAX	128
 
-/* �R�}���h�X�e�[�^�X */
+/* コマンドステータス */
 #define	PARAM_MAX		8
 typedef struct {
 	char	*filename;
 	int	line;
-	double	cnt;	//�g���b�N�J�n���_��0�Ƃ��āA���������̌o�߂����J�E���g��
-	int	frm;	//�����t���[���P�ʂɂ�������
-	double	lcnt;	//�g���b�N�̃��[�v�_(L�R�}���h)��0�Ƃ��āA���������̌o�߂����J�E���g��(������L�����O��0)
-	int	lfrm;	//�����t���[���P�ʂɂ�������
+	double	cnt;	//トラック開始時点を0として、そこからの経過したカウント数
+	int	frm;	//↑をフレーム単位にしたもの
+	double	lcnt;	//トラックのループ点(Lコマンド)を0として、そこからの経過したカウント数(ただしLより前は0)
+	int	lfrm;	//↑をフレーム単位にしたもの
 	int	cmd;
-	double	len;	//�P��:count
+	double	len;	//単位:count
 	int	param[PARAM_MAX];
 } CMD;
+
+/* DPCM(XPCM)用バッファ */
+typedef struct {
+	int		flag;						// 音色使用/未使用フラグ
+	int		index;						// 実際にファイルに書き込まれるインデックス番号
+										// ココが-1以外の時はfilenameは無視されてindex番号のDPCMを使用する(ソート時)
+	char	*fname;
+	int		freq;
+	int		start_adr;
+	int		size;
+	int		delta_init;
+	int		bank_ofs;					//16KB(0x4000)
+} DPCMTBL;
 
 #define PARAM_OMITTED	0x80000000
 
@@ -238,25 +253,15 @@ enum {
 	_PORTMENT,
 	_MASVOL,
 
+	_PAN_ENV,
+	_RESET_IGNORE,
+
 	_REST		= 0xfc,
 	_NOP		= 0xfe,
 	_TRACK_END	= 0xff
 };
 
 #define SELF_DELAY_MAX 8
-
-/* DPCM�p�o�b�t�@ */
-typedef struct {
-	int		flag;						// ���F�g�p/���g�p�t���O
-	int		index;						// ���ۂɃt�@�C���ɏ������܂����C���f�b�N�X�ԍ�
-										// �R�R��-1�ȊO�̎���filename�͖���������index�ԍ���DPCM���g�p����(�\�[�g��)
-	char	*fname;
-	int		freq;
-	int		start_adr;
-	int		size;
-	int		delta_init;
-	int		bank_ofs;					//16KB(0x4000)
-} DPCMTBL;
 
 #define	_DPCM_TOTAL_SIZE	0x4000
 
@@ -269,7 +274,7 @@ typedef struct {
 
 // defination for HuSIC
 #define HULFO_TRK       TRACK(1)
-#define HUNOISE_TRK		(TRACK(3)|TRACK(4)|TRACK(5))
+#define HUNOISE_TRK		(TRACK(4)|TRACK(5))
 
 #define HUS_ALLTRK		(TRACK(0)|TRACK(1)|TRACK(2)|TRACK(3)|TRACK(4)|TRACK(5))
 
@@ -286,18 +291,24 @@ enum {
 enum {
 	MCK_REPEAT_END = 0xa0,
 	MCK_REPEAT_ESC = 0xa1,
+	MCK_PAN_ENV = 0xe6,
+	MCK_RESET_IGNORE = 0xe7,
 	MCK_MASVOL = 0xe8,
 	MCK_SLAR = 0xe9,
 	MCK_PORT = 0xeb,
+	MCK_FMLFO_FRQ = 0xec,
+	MCK_FMLFO_SET = 0xed,
 	MCK_GOTO = 0xee,
 	MCK_HUSIC_MODECHG = 0xef,
 	// MCK_SET_SHIFT_AMOUNT = 0xef,
-	MCK_SET_FDS_HWENV = 0xf0,
+	MCK_PAN = 0xf0,
+	// MCK_SET_FDS_HWENV = 0xf0,
 	MCK_HUSIC_WAVCHG = 0xf1,
+	MCK_NOISE_SW = 0xf2,
 
 //	MCK_SET_SUN5B_NOISE_FREQ = 0xf1,
-	MCK_SET_SUN5B_HARD_SPEED = 0xf2,
-	MCK_SET_FDS_HWEFFECT = 0xf3,
+	// MCK_SET_SUN5B_HARD_SPEED = 0xf2,
+	// MCK_SET_FDS_HWEFFECT = 0xf3,
 	MCK_WAIT = 0xf4,
 	MCK_DATA_WRITE = 0xf5,
 	MCK_DIRECT_FREQ = 0xf6,
@@ -307,7 +318,8 @@ enum {
 	MCK_SET_DETUNE = 0xfa,
 	MCK_SET_LFO = 0xfb,
 	MCK_REST = 0xfc,
-	MCK_SET_VOL = 0xfd, MCK_SUN5B_HARD_ENV = 0xfd,
+	MCK_SET_VOL = 0xfd,
+	// MCK_SUN5B_HARD_ENV = 0xfd,
 	MCK_SET_TONE = 0xfe,
 	MCK_DATA_END = 0xff
 };

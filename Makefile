@@ -41,20 +41,24 @@ xpcm_clean :
 
 huc_clean :
 	cd src/huc/ ; make clean
+	cd src/huc/ ; make clean EXESUFFIX=.exe
 
 tests_clean :
 	cd tests/ ; sh clean.sh
 
-posix_clean :
+posix_bin_clean :
 	cd bin/ ; rm -f hmckc hmckc_j huc pceas xpcm
+
+win32_huc_clean : huc_clean
+	cd bin/ ; rm -f huc.exe
 
 songs_clean :
 	cd songs/ ; rm -f *.hes *.pce
 
 hmckc :
 	cd src/hmckc/src/ ; \
-	make clean install -f Makefile.w32 ; \
-	make clean -f Makefile.w32
+	make clean install ; \
+	make clean
 
 xpcm :
 	cd src/wav2pd4/ ; \
@@ -82,7 +86,7 @@ full : bin husic
 
 full_clean : huc_clean hmckc_clean xpcm_clean
 
-clean: hmckc_clean songs_clean posix_clean
+clean: hmckc_clean songs_clean
 
 
 zip: distclean

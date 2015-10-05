@@ -17,19 +17,21 @@
   .org $4400
 
  _sound_dat:
-	dw	sound_data_table	; 0
-	dw	loop_point_table	; 1
-	dw	softenve_table		; 2
-	dw	softenve_lp_table	; 3
-	dw	pitchenve_table		; 4
-	dw	pitchenve_lp_table	; 5
-	dw	lfo_data		    ; 6
-	dw	sound_data_bank		; 7
-	dw	loop_point_bank		; 8
-	dw	arpeggio_table		; 9
-	dw	arpeggio_lp_table	; 10
-    dw	dutyenve_table		; 11
-    dw	dutyenve_lp_table	; 12
+	dw	sound_data_table	 ; 0
+	dw	loop_point_table	 ; 1
+	dw	softenve_table		 ; 2
+	dw	softenve_lp_table	 ; 3
+	dw	pitchenve_table		 ; 4
+	dw	pitchenve_lp_table ; 5
+	dw	lfo_data		       ; 6
+	dw	sound_data_bank		 ; 7
+	dw	loop_point_bank		 ; 8
+	dw	arpeggio_table		 ; 9
+	dw	arpeggio_lp_table	 ; 10
+  dw	dutyenve_table		 ; 11
+  dw	dutyenve_lp_table	 ; 12
+  dw	multienv_table		 ; 13
+  dw	multienv_lp_table  ; 14
 
 _pcewav:
 	dw	pce_data_table

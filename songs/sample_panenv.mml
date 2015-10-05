@@ -1,5 +1,5 @@
-; sample_mv.mml
-; Master Volume
+; sample_panenv.mml
+; Pan Envelope
 ; You may use this as a template
 
 @WT0={
@@ -9,11 +9,10 @@ $12,$15,$13,$0d,$06,$01,$00,$04,
 $0b,$0f,$10,$0c,$07,$04,$06,$0c
 }
 
+@ME0 = { $ff x4 $f8 x4 $8f x4 $33 }
+
+
 A L t120 W0 o4 v31
-A MV$FF
-A cr dr
-A MV$CC
-A er fr
-A MV$77 gr ar
-A MV$33
-A br > cr <
+A @pe0
+; A RI%10000
+A cr dr er fr gr ar br > cr <

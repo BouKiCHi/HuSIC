@@ -6,7 +6,7 @@
 
 #include	"mckc.h"
 
-#define HMCKC_VER "Modified for HuSIC Version 11\n"
+#define HMCKC_VER "Modified for HuSIC Version 12\n"
 
 
 extern void splitPath( const char *ptr, char *path, char *name, char *ext );

@@ -76,10 +76,19 @@ extern int pcewav[];
 #define EFX_PORT (2)
 #define EFX_PORT_ST (4)
 
+/* エンベロープリセット用フラグ */
+#define RI_TE 1 /* TONE */
+#define RI_NE 2 /* NOTE */
+#define RI_PE 4 /* PITCH */
+#define RI_LFO 8 /* LFO */
+#define RI_PAN 16 /* PAN */
+
 char	reg_ch;
 
 char	ch_nowbank;
 char	ch_topbank;
+
+char	*seq_ptr;
 
 char	ch_lastcmd[MAX_CH];
 
@@ -91,6 +100,7 @@ char	ch_lastvol[MAX_CH];
 char	ch_lasttone[MAX_CH];
 
 char  ch_efx[MAX_CH];
+char  ch_rst[MAX_CH];
 
 char  ch_porthi[MAX_CH];
 char  ch_portlo[MAX_CH];
@@ -98,6 +108,7 @@ char  ch_portcnt[MAX_CH];
 
 char	note_data[MAX_CH];
 
+char  multienv_sw[MAX_CH];
 char	tone_sw[MAX_CH];
 char	pitch_sw[MAX_CH];
 char	note_sw[MAX_CH];
@@ -106,7 +117,6 @@ char	detune[MAX_CH];
 char	panpod[MAX_CH];
 char	loop_cnt[MAX_CH];
 
-char	*seq_ptr;
 int		seq_pos[MAX_CH];
 int		seq_freq[MAX_CH];
 
@@ -114,6 +124,10 @@ int		tone_envadr[MAX_CH];
 int		pitch_envadr[MAX_CH];
 int		volume_envadr[MAX_CH];
 int		note_envadr[MAX_CH];
+
+int		multi_envadr[MAX_CH];
+int		multi_envcnt[MAX_CH];
+
 
 char	lfo_sw[MAX_CH]; /* 0xff = no_effect*/
 char	lfo_cnt[MAX_CH]; /* speed cnt */
@@ -247,6 +261,7 @@ drv_init()
 		note_sw[i] = 0xff;
 		panpod[i] = 0xff;
 		pitch_sw[i] = 0xff;
+		multienv_sw[i] = 0xff;
 		ch_lasttone[i] = 0xff;
 
 		seq_pos[i] = *(sound_dat[0] + (i<<1));
@@ -257,12 +272,14 @@ drv_init()
 		note_envadr[i] = 0x00;
 		pitch_envadr[i] = 0x00;
 		volume_envadr[i] = 0x00;
+		multi_envadr[i] = 0x00;
 
 		ch_bank[i] = *(sound_dat[7] + i);
 
 		snd_saw(i);
 		ch_cnt[i] = 0;
 		ch_efx[i] = 0;
+		ch_rst[i] = 0;
 		ch_lastvol[i] = 0x00;
 	}
 
@@ -315,6 +332,9 @@ char ch, data;
 
 extern int seqproc[];
 
+
+
+
 /* コマンド読み出し&実行 */
 do_seq(ch)
 int ch;
@@ -353,10 +373,10 @@ int ch;
 
 
 	/* コマンド確認とジャンプ */
-	if (sd >= 0xe8)
+	if (sd >= 0xe6)
 	{
 		/* E8以上であればテーブルからジャンプする */
-		tmp = seqproc[sd - 0xe8];
+		tmp = seqproc[sd - 0xe6];
 #asm
 ;
 ; jump to command routine
@@ -666,6 +686,35 @@ SEQ_E8:
 #endasm
 
 #asm
+SEQ_E7:
+	nop
+#endasm
+
+/* $E7: リセット無視 引数:フラグ*/
+ j = *(++seq_ptr);
+ ch_rst[ch] = j;
+ seq_ptr++;
+
+#asm
+	jmp endpoint
+#endasm
+
+#asm
+SEQ_E6:
+	nop
+#endasm
+
+/* $E6: パンエンベロープ 引数:フラグ*/
+ j = *(++seq_ptr);
+ multienv_sw[ch] = j;
+ reset_multienv(ch);
+ seq_ptr++;
+
+#asm
+	jmp endpoint
+#endasm
+
+#asm
 SEQ_EC:
   nop
 #endasm
@@ -760,10 +809,16 @@ endpoint:
     /***** エンベロープの設定 *****/
 		if (!(ch_efx[ch] & EFX_SLAR))
 		{
-			reset_te(ch); /* 音色 */
-			reset_ne(ch); /* ノート */
-			reset_pe(ch); /* ピッチ */
-			reset_lfo(ch); /* LFO */
+			if (!(ch_rst[ch] & RI_TE))
+				reset_te(ch); /* 音色 */
+			if (!(ch_rst[ch] & RI_NE))
+				reset_ne(ch); /* ノート */
+			if (!(ch_rst[ch] & RI_PE))
+				reset_pe(ch); /* ピッチ */
+			if (!(ch_rst[ch] & RI_LFO))
+				reset_lfo(ch); /* LFO */
+			if (!(ch_rst[ch] & RI_PAN))
+				reset_multienv(ch); /* マルチエンベロープ */
 		}
 
 		/********/
@@ -830,6 +885,42 @@ endpoint:
 		chg_cbank(ch_nowbank);
 }
 
+/* ジャンプテーブル */
+#asm
+
+_seqproc:
+	dw   SEQ_E6
+	dw   SEQ_E7
+	dw   SEQ_E8
+	dw   SEQ_E9
+	dw   SEQ_EA
+	dw	 SEQ_EB
+	dw   SEQ_EC
+	dw   SEQ_ED
+	dw   SEQ_EE
+	dw   SEQ_EF
+	dw   SEQ_F0
+	dw   SEQ_F1
+	dw   SEQ_F2
+	dw   endpoint ; f3
+	dw   SEQ_F4
+	dw   endpoint ; f5
+	dw   endpoint ; f6
+	dw   SEQ_F7   ; f7
+	dw   SEQ_F8
+	dw   SEQ_F9
+	dw   SEQ_FA
+	dw   SEQ_FB
+	dw   SEQ_FC
+	dw   SEQ_FD
+	dw   SEQ_FE
+	dw   SEQ_FF
+
+#endasm
+
+
+
+
 /* 音色エンベロープリセット */
 reset_te(ch)
 int ch;
@@ -844,6 +935,26 @@ int ch;
 		chg_cbank(ch_nowbank);
 	}
 }
+
+/* マルチエンベロープリセット */
+reset_multienv(ch)
+int ch;
+{
+	int tmp;
+
+	if (multienv_sw[ch] == 0xff)
+			multi_envadr[ch] = 0;
+	else
+	{
+		chg_cbank(ch_topbank);
+		tmp = *(sound_dat[13] + (multienv_sw[ch]<<1));
+		multi_envcnt[ch] = *(tmp);
+		multi_envadr[ch] = tmp + 4;
+
+		chg_cbank(ch_nowbank);
+	}
+}
+
 
 /* ノートエンベロープリセット */
 reset_ne(ch)
@@ -890,35 +1001,6 @@ int ch;
 			chg_cbank(ch_nowbank);
     }
 }
-#asm
-
-_seqproc:
-	dw   SEQ_E8
-	dw   SEQ_E9
-	dw   SEQ_EA
-	dw	 SEQ_EB
-	dw   SEQ_EC
-	dw   SEQ_ED
-	dw   SEQ_EE
-	dw   SEQ_EF
-	dw   SEQ_F0
-	dw   SEQ_F1
-	dw   SEQ_F2
-	dw   endpoint ; f3
-	dw   SEQ_F4
-	dw   endpoint ; f5
-	dw   endpoint ; f6
-	dw   SEQ_F7   ; f7
-	dw   SEQ_F8
-	dw   SEQ_F9
-	dw   SEQ_FA
-	dw   SEQ_FB
-	dw   SEQ_FC
-	dw   SEQ_FD
-	dw   SEQ_FE
-	dw   SEQ_FF
-
-#endasm
 
 /********************
 
@@ -1013,6 +1095,33 @@ int sch;
     snd_chg(val);
 }
 
+/********************
+ パンエンベロープ
+ *********************/
+drv_panenv(sch)
+int sch;
+{
+    int tmp;
+    char val;
+
+		/* カウントが0ならループ位置へ移動 */
+		if (!multi_envcnt[sch])
+		{
+			tmp = *(sound_dat[13] + (multienv_sw[sch] << 1));
+			multi_envcnt[sch] = *(tmp + 2);
+			multi_envadr[sch] = *(sound_dat[14] + (multienv_sw[sch] << 1));
+		}
+
+		/* カウントが0でなければ読みだして書き込む */
+		if (multi_envcnt[sch])
+		{
+    	val = *(multi_envadr[sch]++);
+			multi_envcnt[sch]--;
+			/* パン変更 */
+			panpod[sch] = val;
+			poke(SND_PAN, val);
+		}
+}
 
 /********************
  ピッチエンベロープ
@@ -1242,6 +1351,11 @@ drv_intr()
 				{
 					snd_update = 1;
           drv_pitchenv(sch);
+				}
+
+				if (multi_envadr[sch])
+				{
+          drv_panenv(sch);
 				}
 
         if (lfo_sw[sch] != 0xff)
