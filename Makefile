@@ -9,17 +9,21 @@
 DATE = $(shell date +"%y%m%d")
 ZIPNAME = husic_$(DATE).zip
 
+PFX =
+CC = gcc
+
+
+ifeq ($(OS),Windows_NT)
+EXESFX = .exe
+else
+EXESFX =
+endif
+
 ifeq ($(WIN32),1)
 
 PFX = i586-mingw32-
 CC = $(PFX)gcc
 EXESFX = .exe
-
-else
-
-PFX =
-CC = gcc
-EXESFX =
 
 endif
 
@@ -55,6 +59,11 @@ win32_huc_clean : huc_clean
 songs_clean :
 	cd songs/ ; rm -f *.hes *.pce
 
+full_clean : huc_clean hmckc_clean xpcm_clean
+
+clean: hmckc_clean songs_clean
+
+
 hmckc :
 	cd src/hmckc/src/ ; \
 	make clean install ; \
@@ -72,6 +81,7 @@ huc :
 
 	cp src/huc/bin/huc$(EXESFX) bin/
 	cp src/huc/bin/pceas$(EXESFX) bin/
+	cp src/huc/bin/isolink$(EXESFX) bin/
 	rm -f src/huc/bin/*
 
 bin: hmckc xpcm huc
@@ -82,11 +92,13 @@ tests :
 husic :
 	cd src/husic/ ; sh compile.sh
 
+husic_dbg :
+		cd src/husic/ ; sh compile_dbg.sh
+
+
 full : bin husic
 
-full_clean : huc_clean hmckc_clean xpcm_clean
 
-clean: hmckc_clean songs_clean
 
 
 zip: distclean

@@ -1,6 +1,6 @@
 //// HuSIC  ///////////////////////
 //  A Sound Driver for PC Engine
-//  ver 0.39 Programmed by BouKiCHi
+//  ver 0.40 Programmed by BouKiCHi
 ///////////////////////////////////
 
 ■HuSICについて
@@ -290,6 +290,10 @@
   (10 x4で10を4回繰り返すのと同じになる)
   RI(リセット無視)、@pe(パンエンベロープ)コマンドを追加した
   @ME定義の追加
+
+  ver 0.40 2015/10/05
+  isomake関連の修正
+
 
 
  ■HuSIC使用規約 Ver 1.0(2006/03/05)

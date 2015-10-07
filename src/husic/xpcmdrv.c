@@ -399,16 +399,16 @@ pcm_intr_c()
 	; 割り込みタイマー設定
 	.proc _set_pcmintr
 
+	; タイマー割り込みを禁止にする
+	rmb   #2, <irq_m
 	stz   irq_status
-	stw   #_timer_pcm,timer_jmp
-	rmb   #2,<irq_m
+	stw   #_timer_pcm, timer_jmp
 
 	; V = 1
 	; (7.159090 / 1024) / V = 6991.29Hz
 
 	lda   #0
 	sta   timer_cnt
-
 
 	lda   #$1
 	sta   timer_ctrl

@@ -39,7 +39,6 @@ _pcewav:
 _xpcmdata
 	dw	xpcm_data
 
-;	.include "songdata.h"
 	.bank CONST_BANK
 	.include "effect.h"
 
@@ -47,11 +46,14 @@ _xpcmdata
 ;------------------------------
 ; PCM timer routines
 	.code
+;	.bank DATA_BANK
 	.bank START_BANK
 
 ; タイマー割り込みエントリーポイント
+;  .proc _timer_pcm
 
-_timer_pcm
+_timer_pcm:
+  sei
 	pha
 	phx
 	phy
@@ -87,18 +89,19 @@ _timer_pcm
 
 ; タイマー復帰
 	sta   irq_status
-	cli
-
 	ply
 	plx
 	pla
 
-
+	cli
 	rti
+;  .endp
+
+;  .proc _vsync_drv
 
 ; VSYNC割り込み
-
-_vsync_drv
+_vsync_drv:
+  sei
 
 	__ldw <__temp
 	__stw <__vs_temp
@@ -126,9 +129,10 @@ _vsync_drv
 
 	__ldw <__vs_bx
 	__stw <_bx
-
+  cli
 	rts
 
+;  .endp
            .zp
 __tmr_temp   .ds 2
 __tmr_ptr   .ds 2
@@ -140,9 +144,19 @@ __vs_bx    .ds 2
 
 	; restore segment and bank
 	.code
-	.bank START_BANK
+	.bank DATA_BANK
+;	.bank START_BANK
 
 #endasm
+
+int log_y;
+
+log_puts(str)
+char *str;
+{
+  put_string(str, 0, log_y);
+  log_y++;
+}
 
 /*  HuC's standard header */
 #include "huc.h"
@@ -169,8 +183,13 @@ main()
 
 	disp_on();
 
-	put_string("HuSIC DISPLAY", 5, 2);
+  log_y = 0;
+  log_puts("HuSIC MAIN START");
+
 	drv_init();
+
+  cls();
+  put_string("HuSIC DISPLAY", 5, 2);
 	put_string("INIT OK", 5, 3);
 
 	while(1)

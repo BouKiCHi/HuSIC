@@ -143,12 +143,14 @@ char	noise_sw[2];
 #include "xpcmdrv.c"
 
 #asm
+; CBANKを切り替え
 	.proc _chg_cbank
 	txa
 	tam #2
 	rts
 	.endp
 
+; 現在のCBANKを取得
 	.proc _now_cbank
 	tma #2
 	tax
@@ -156,15 +158,17 @@ char	noise_sw[2];
 	rts
 	.endp
 
+; デフォルトCBANKの設定
 	.proc _def_cbank
 	lda #CONST_BANK+_bank_base
 	tam #2
 	rts
 	.endp
 
+; VSYNC割り込みフック設定
 	.proc _drv_setintr
 
-	stw   #_vsync_drv,vsync_hook
+	stw   #_vsync_drv, vsync_hook
 	smb   #4,<irq_m		; enable new code
 	smb   #5,<irq_m		; disable system card code
 
@@ -248,6 +252,11 @@ drv_init()
 	int i;
 	char *seq_data;
 
+#asm
+; drv_init()
+#endasm
+
+
 	ch_topbank = now_cbank();
 	seq_ptr = 0x1234;
 
@@ -255,6 +264,7 @@ drv_init()
 	{
 		reg_ch = i;
 		poke( SND_SEL, i );
+
 
 		tone_sw[i] = 0xff;
 		lfo_sw[i] = 0xff;
@@ -264,8 +274,6 @@ drv_init()
 		multienv_sw[i] = 0xff;
 		ch_lasttone[i] = 0xff;
 
-		seq_pos[i] = *(sound_dat[0] + (i<<1));
-
 		loop_cnt[i] = 0x00;
 		detune[i] = 0x00;
 		tone_envadr[i] = 0x00;
@@ -274,6 +282,7 @@ drv_init()
 		volume_envadr[i] = 0x00;
 		multi_envadr[i] = 0x00;
 
+		seq_pos[i] = *(sound_dat[0] + (i<<1));
 		ch_bank[i] = *(sound_dat[7] + i);
 
 		snd_saw(i);
@@ -341,7 +350,12 @@ int ch;
 {
 	int sd;
 	int i, j;
-    int seq_adrs, tmp;
+  int seq_adrs, tmp;
+
+#asm
+; do_seq()
+#endasm
+
 
     chg_cbank(ch_nowbank);
 
@@ -389,8 +403,8 @@ int ch;
 #endasm
 
 #asm
+; $FF : トラック終了(現在未使用)
 SEQ_FF:
-  nop
 #endasm
 		/* $FF: トラック終了 */
 		chg_cbank(ch_topbank);
@@ -405,8 +419,8 @@ SEQ_FF:
 #endasm
 
 #asm
+; $FE : 音色設定
 SEQ_FE:
-  nop
 #endasm
 /* $FE:音色設定 */
    j = *(++seq_ptr);
@@ -421,18 +435,17 @@ SEQ_FE:
 #endasm
 
 #asm
+; $F9: ハードウェアスイープ(未使用)
 SEQ_F9:
-  nop
 #endasm
-/* $F9: ???? */
     seq_ptr += 2;
 #asm
 	jmp endpoint
 #endasm
 
 #asm
+; $FD: 音量設定
 SEQ_FD:
-  nop
 #endasm
 /* $FD:音量設定 引数:1 */
 		j = *(++seq_ptr); seq_ptr++;
@@ -444,10 +457,9 @@ SEQ_FD:
 #endasm
 
 #asm
+; $FC: 休符(REST)
 SEQ_FC:
-  nop
 #endasm
-
 /* $FC:休符 */
     j = *(++seq_ptr);
     seq_ptr++;
@@ -465,21 +477,20 @@ SEQ_FC:
 #endasm
 
 #asm
+; $FB: LFOスイッチ　引数:1
 SEQ_FB:
-  nop
 #endasm
     /* $FB: LFOスイッチ 引数:1 */
     j = *(++seq_ptr); seq_ptr++;
 	lfo_sw[ch] = j;
 	reset_lfo(ch);
-
 #asm
 	jmp endpoint
 #endasm
 
 #asm
+; $FA: デチューン設定 引数:1
 SEQ_FA:
-  nop
 #endasm
 
  /* $FA:デチューン設定 引数:1 */
@@ -495,8 +506,8 @@ SEQ_FA:
 #endasm
 
 #asm
+; $F8: ピッチエンベロープ
 SEQ_F8:
-  nop
 #endasm
  /* $F8:ピッチエンベロープ */
 
@@ -509,8 +520,8 @@ SEQ_F8:
 #endasm
 
 #asm
+; $F7: ノートエンベロープ
 SEQ_F7:
-  nop
 #endasm
   /* $F7:ノートエンベロープ */
   j = *(++seq_ptr);
@@ -522,8 +533,8 @@ SEQ_F7:
 #endasm
 
 #asm
+; $F4: ウェイト 引数:カウント
 SEQ_F4:
-  nop
 #endasm
  /* $F4:ウェイト */
 		j = *(++seq_ptr); seq_ptr++;
@@ -534,8 +545,8 @@ SEQ_F4:
 #endasm
 
 #asm
+; $F2: ノイズコマンド
 SEQ_F2:
-  nop
 #endasm
 /* $F2: ノイズコマンド */
 		j = *(++seq_ptr); seq_ptr++;
@@ -558,8 +569,8 @@ SEQ_F2:
 #endasm
 
 #asm
+; $F1: 波形変更コマンド
 SEQ_F1:
-  nop
 #endasm
  /* $F1: PCE 波形変更コマンド */
 		j = *(++seq_ptr); seq_ptr++;
@@ -573,8 +584,8 @@ SEQ_F1:
 #endasm
 
 #asm
+; $F0: パンコマンド
 SEQ_F0:
-  nop
 #endasm
 
 /* $F0: PCE パンコマンド */
@@ -587,8 +598,8 @@ SEQ_F0:
 #endasm
 
 #asm
+; $EF: XPCMスイッチ
 SEQ_EF:
-  nop
 #endasm
 
  /* $EF: XPCM switch */
@@ -600,8 +611,8 @@ SEQ_EF:
 #endasm
 
 #asm
+; $EE: バンク切り替え(ジャンプ) コマンド
 SEQ_EE:
-  nop
 #endasm
 
  /* $EE: バンク切り替えコマンド  */
@@ -617,10 +628,9 @@ SEQ_EE:
 #endasm
 
 #asm
+; $ED: HWLFOモード
 SEQ_ED:
-  nop
 #endasm
-
  /* $ED: HW LFO mode */
 		j = *(++seq_ptr); seq_ptr++;
 		if ( j == 0xff )
@@ -639,10 +649,10 @@ SEQ_ED:
 #endasm
 
 #asm
+; $EB: ポルタメント　引数:hi lo
 SEQ_EB:
-	nop
 #endasm
-	/* $EB: ポルタメント 引数:step, val */
+	/* $EB: ポルタメント 引数:hi lo */
 	j = *(++seq_ptr);
 	ch_porthi[ch] = j;
 	j = *(++seq_ptr);
@@ -660,8 +670,8 @@ SEQ_EB:
 
 
 #asm
+; $E9: スラー: 引数無し
 SEQ_E9:
-	nop
 #endasm
 /* $E9: スラー : 引数なし */
 	ch_efx[ch] |= EFX_SLAR;
@@ -672,8 +682,8 @@ SEQ_E9:
 #endasm
 
 #asm
+; $E8: マスターボリューム
 SEQ_E8:
-	nop
 #endasm
 
 /* $E8: マスターボリューム 引数:*/
@@ -686,8 +696,8 @@ SEQ_E8:
 #endasm
 
 #asm
+; $E7: リセット無視 引数:フラグ
 SEQ_E7:
-	nop
 #endasm
 
 /* $E7: リセット無視 引数:フラグ*/
@@ -700,8 +710,8 @@ SEQ_E7:
 #endasm
 
 #asm
+; $E6: パンエンベロープ 引数:フラグ
 SEQ_E6:
-	nop
 #endasm
 
 /* $E6: パンエンベロープ 引数:フラグ*/
@@ -715,8 +725,8 @@ SEQ_E6:
 #endasm
 
 #asm
+; $EC: HW LFO周波数
 SEQ_EC:
-  nop
 #endasm
 
  /* $EC: HW LFO 周波数 */
@@ -887,34 +897,36 @@ endpoint:
 
 /* ジャンプテーブル */
 #asm
-
+	.proc _seqproc
+; RTSを利用したジャンプ。RTSはアドレス+1から実行される。
 _seqproc:
-	dw   SEQ_E6
-	dw   SEQ_E7
-	dw   SEQ_E8
-	dw   SEQ_E9
-	dw   SEQ_EA
-	dw	 SEQ_EB
-	dw   SEQ_EC
-	dw   SEQ_ED
-	dw   SEQ_EE
-	dw   SEQ_EF
-	dw   SEQ_F0
-	dw   SEQ_F1
-	dw   SEQ_F2
-	dw   endpoint ; f3
-	dw   SEQ_F4
-	dw   endpoint ; f5
-	dw   endpoint ; f6
-	dw   SEQ_F7   ; f7
-	dw   SEQ_F8
-	dw   SEQ_F9
-	dw   SEQ_FA
-	dw   SEQ_FB
-	dw   SEQ_FC
-	dw   SEQ_FD
-	dw   SEQ_FE
-	dw   SEQ_FF
+	dw   SEQ_E6 - 1
+	dw   SEQ_E7 - 1
+	dw   SEQ_E8 - 1
+	dw   SEQ_E9 - 1
+	dw   SEQ_EA - 1
+	dw	 SEQ_EB - 1
+	dw   SEQ_EC - 1
+	dw   SEQ_ED - 1
+	dw   SEQ_EE - 1
+	dw   SEQ_EF - 1
+	dw   SEQ_F0 - 1
+	dw   SEQ_F1 - 1
+	dw   SEQ_F2 - 1
+	dw   endpoint - 1 ; f3
+	dw   SEQ_F4 - 1
+	dw   endpoint - 1 ; f5
+	dw   endpoint - 1 ; f6
+	dw   SEQ_F7 - 1   ; f7
+	dw   SEQ_F8 - 1
+	dw   SEQ_F9 - 1
+	dw   SEQ_FA - 1
+	dw   SEQ_FB - 1
+	dw   SEQ_FC - 1
+	dw   SEQ_FD - 1
+	dw   SEQ_FE - 1
+	dw   SEQ_FF - 1
+	.endp
 
 #endasm
 
