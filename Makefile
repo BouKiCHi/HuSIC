@@ -14,8 +14,10 @@ CC = gcc
 
 
 ifeq ($(OS),Windows_NT)
+SCRSFX = .bat
 EXESFX = .exe
 else
+SCRSFX = .sh
 EXESFX =
 endif
 
@@ -34,7 +36,9 @@ ZIP = $(ZIPNAME)
 all : hmckc
 
 help :
-	@echo "usage make [hmckc|xpcm|huc|husic]"
+	@echo "usage make [hmckc|xpcm|huc|husic|env]"
+	@echo " env  = hmckc | xpcm "
+	@echo " bin  = hmckc | xpcm | huc"
 
 
 hmckc_clean :
@@ -66,8 +70,8 @@ clean: hmckc_clean songs_clean
 
 hmckc :
 	cd src/hmckc/src/ ; \
-	make clean install ; \
-	make clean
+	make CC=$(CC) EXESFX=$(EXESFX) install ; \
+	make EXESFX=$(EXESFX) clean
 
 xpcm :
 	cd src/wav2pd4/ ; \
@@ -75,6 +79,9 @@ xpcm :
 	make EXESFX=$(EXESFX) clean
 
 huc :
+	rm -f src/huc/bin
+	mkdir src/huc/bin
+
 	cd src/huc/ ; \
 	make CC=$(CC) EXESUFFIX=$(EXESFX); \
 	make EXESUFFIX=$(EXESFX) clean
@@ -84,21 +91,21 @@ huc :
 	cp src/huc/bin/isolink$(EXESFX) bin/
 	rm -f src/huc/bin/*
 
+env: hmckc xpcm
+
 bin: hmckc xpcm huc
 
 tests :
 	cd tests/ ; sh build.sh
 
 husic :
-	cd src/husic/ ; sh compile.sh
+	cd src/husic/ ; compile$(SCRSFX)
 
 husic_dbg :
-		cd src/husic/ ; sh compile_dbg.sh
+		cd src/husic/ ; compile_dbg$(SCRSFX)
 
 
 full : bin husic
-
-
 
 
 zip: distclean

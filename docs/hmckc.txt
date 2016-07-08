@@ -2,6 +2,12 @@
 hmckc - ppmckc release 9 for HuSIC
 modified by BouKiCHi
 
+2016-07-09 version 14
+ added function to make multi track file.
+
+201x-xx-xx version 13
+
+
 2015-10-05 version 12
   added x<num> in envelope definition.
   (num = fill the number of times with previous value ).
@@ -58,4 +64,9 @@ M     : XPCM sw ( M0 = off , M1 = on )
 
 &     : slur (ex. c&e&g)
 _     : portamento (ex. c8_g)
+
+pn<note> : portamento start note
+p<num>   : portamento mode
+         : 0.. stop(default) 64... speed=1/2 128... speed=1/1
+
 MV    : Master volume (ex. MV$33)

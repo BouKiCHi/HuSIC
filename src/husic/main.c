@@ -17,21 +17,22 @@
   .org $4400
 
  _sound_dat:
-	dw	sound_data_table	 ; 0
-	dw	loop_point_table	 ; 1
+	dw	song_000_track_table	 ; 0
+	dw	song_000_loop_table	 ; 1
 	dw	softenve_table		 ; 2
 	dw	softenve_lp_table	 ; 3
 	dw	pitchenve_table		 ; 4
 	dw	pitchenve_lp_table ; 5
 	dw	lfo_data		       ; 6
-	dw	sound_data_bank		 ; 7
-	dw	loop_point_bank		 ; 8
+	dw	song_000_bank_table ; 7
+	dw	song_000_loop_bank  ; 8
 	dw	arpeggio_table		 ; 9
 	dw	arpeggio_lp_table	 ; 10
   dw	dutyenve_table		 ; 11
   dw	dutyenve_lp_table	 ; 12
   dw	multienv_table		 ; 13
   dw	multienv_lp_table  ; 14
+  dw	song_addr_table  ; 15
 
 _pcewav:
 	dw	pce_data_table
@@ -57,6 +58,9 @@ _timer_pcm:
 	pha
 	phx
 	phy
+
+; タイマーリセット
+  	sta   irq_status
 
 ; C言語用一時変数などの保存
 	__ldw <__temp
@@ -87,8 +91,6 @@ _timer_pcm:
 	__ldw <__tmr_bx
 	__stw <_bx
 
-; タイマー復帰
-	sta   irq_status
 	ply
 	plx
 	pla
@@ -101,8 +103,6 @@ _timer_pcm:
 
 ; VSYNC割り込み
 _vsync_drv:
-  sei
-
 	__ldw <__temp
 	__stw <__vs_temp
 
@@ -120,7 +120,6 @@ _vsync_drv:
 	pla
 	tam	#page(_drv_intr)
 
-
 	__ldw <__vs_temp
 	__stw <__temp
 
@@ -129,7 +128,7 @@ _vsync_drv:
 
 	__ldw <__vs_bx
 	__stw <_bx
-  cli
+    
 	rts
 
 ;  .endp
@@ -149,25 +148,54 @@ __vs_bx    .ds 2
 
 #endasm
 
-int log_y;
-
-log_puts(str)
-char *str;
-{
-  put_string(str, 0, log_y);
-  log_y++;
-}
-
 /*  HuC's standard header */
 #include "huc.h"
  /* HuSIC's core( main code ) */
 #include "hus.c"
 
+display_title()
+{
+  cls();
+  put_string("HuSIC 160709", 5, 2);  
+}
+
+select_song()
+{
+  char songno;
+  char songmax;
+  
+  songno = 0;
+  songmax = get_songmax();
+  
+  display_title();
+  put_string("SELECT SONG", 5, 3);
+  
+  while(1) {
+    vsync();
+    put_hex(songno, 2, 5, 4);
+    if (joytrg(0) & JOY_RGHT) {
+      songno++;
+      songno = songno % songmax; 
+    } 
+    if (joytrg(0) & JOY_LEFT) {
+      songno--;
+      songno = songno % songmax; 
+    } 
+    if (joytrg(0) & JOY_STRT) {
+      break;
+    }
+  }
+  return songno;
+}
+
 main()
 {
 	int i;
-	int count, x;
-
+	int count, x, y;
+  char songno;
+  
+  songno = 1;
+  
 	count = 0;
 
 	disp_off();
@@ -178,29 +206,19 @@ main()
 	set_color_rgb(1, 7, 7, 7);
 	set_font_color(1, 0);
 	set_font_pal(0);
-
 	load_default_font();
-
 	disp_on();
 
-  log_y = 0;
-  log_puts("HuSIC MAIN START");
-
-	drv_init();
-
-  cls();
-  put_string("HuSIC DISPLAY", 5, 2);
-	put_string("INIT OK", 5, 3);
-
+  songno = select_song();
+  
+  display_title();
+  
+  drv_init(songno);
+  
 	while(1)
 	{
 		vsync();
-
-		/* ステップ実行
-    if(joytrg(0) & JOY_STRT)
-			drv_intr();
-    */
-
+    
     /* 現在のポインタ、topbank、nowbank */
     /* put_hex(value, digits, x, y) */
 		put_hex(seq_ptr, 4, 13, 3);
