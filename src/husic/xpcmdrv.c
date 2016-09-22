@@ -15,6 +15,8 @@ int  xpcm_addr[2];
 int  xpcm_len[2];
 char xpcm_shift[2];
 char xpcm_bank[2];
+char xpcm_buf[2];
+char xpcm_nextbuf[2];
 
 char xpcm_bank_save;
 
@@ -40,25 +42,25 @@ pcm_play_data ( ch , addr , len , bank )
 int ch , addr , len;
 char bank;
 {
+	int idx;
+
 	switch ( ch )
 	{
-		case XPCM_CH:
-
-			xpcm_addr[0] = addr;
-			xpcm_len[0]  = len;
-			xpcm_bank[0] = bank;
-			xpcm_shift[0] = 0;
-
-		break;
 		case XPCM2_CH:
-
-			xpcm_addr[1] = addr;
-			xpcm_len[1]  = len;
-			xpcm_bank[1] = bank;
-			xpcm_shift[1] = 0;
-
+			idx = 1;
+		break;
+		case XPCM_CH:
+		default:
+			idx = 0;
 		break;
 	}
+
+	xpcm_addr[idx] = addr;
+	xpcm_len[idx]  = len;
+	xpcm_bank[idx] = bank;
+	xpcm_shift[idx] = 0;
+	xpcm_nextbuf[idx] = 0;
+
 	pcm_on( ch );
 }
 
@@ -287,6 +289,97 @@ char mode;
 
 	.endm
 
+	;_pcm_proc_5bit < ch , index >
+	;
+	; in : ch = 物理チャンネル
+	;    : index = 変数の相対位置
+
+	.macro _pcm_proc_5bit
+
+		; チャンネル選択
+		lda		#\1
+		_xpokei_b REG_SEL
+
+		; バンク切り替え
+		tma		#3
+		sta		_xpcm_bank_save
+		lda		_xpcm_bank + \2
+		tam		#3
+
+		; バッファクリア
+		lda   #0
+		sta		_xpcm_buf + \2
+
+		; シフト数を設定
+		lda		#5
+
+	; ループ
+	.shift_lp_\2:
+		pha
+		; バッファのビット数を読みだし
+		lda		_xpcm_shift + \2
+		; 0なら読み出し
+		bne		.shift_bit_\2
+
+		; バッファに読み出し
+		_xpeek_b _xpcm_addr + (\2 * 2)
+		sta		_xpcm_nextbuf + \2
+
+		; アドレスポインタ加算
+		__ldw   _xpcm_addr + (\2 * 2)
+		__addwi 1
+		__stw	_xpcm_addr + (\2 * 2)
+
+		; 残りサイズ減算
+		__ldw   _xpcm_len + (\2 * 2)
+		__subwi 1
+		__stw	_xpcm_len + (\2 * 2)
+
+		; ビット数を補充
+		lda		#8
+		sta		_xpcm_shift + \2
+
+	; ビットシフトを行う
+	.shift_bit_\2:
+		asl		_xpcm_nextbuf + \2
+		rol		_xpcm_buf + \2
+		; バッファのビット数を減算
+		dec		_xpcm_shift + \2
+
+		; シフト数を減算
+		pla
+		dec		A
+		bne		.shift_lp_\2
+
+	; 出力
+	.store_\2:
+		; バッファ読み出し
+		lda		_xpcm_buf + \2
+		; DACへ出力
+		_xpokei_b REG_DAC
+
+		; バンク切り替えを戻す
+		lda		_xpcm_bank_save
+		tam		#3
+
+		; 残りサイズの確認
+		__ldw   _xpcm_len + (\2 * 2)
+		stx		<__temp
+		ora		<__temp
+
+		; まだサイズがあるのでスキップする
+		bne		.skip_pcmoff_\2
+
+		; PCMをオフにする
+		__ldwi	\1
+		call	_pcm_off
+
+	;　終了
+	.skip_pcmoff_\2:
+
+	.endm
+
+
 
 	;
 	; pcm_intr
@@ -311,15 +404,30 @@ char mode;
 		_xpokei_b REG_SEL
 		rts
 
-	; process
+	; PCM出力
+	.if (USE_5BITPCM)
+	; 5ビット
 
 	.ch1_proc:
-		_pcm_proc 5,0
+		_pcm_proc_5bit 5, 0
 		jmp		.end_ch1
 
 	.ch2_proc:
-		_pcm_proc 4,1
+		_pcm_proc_5bit 4, 1
 		jmp		.end_ch2
+	.else
+
+	; 4ビット
+
+	.ch1_proc:
+		_pcm_proc 5, 0
+		jmp		.end_ch1
+
+	.ch2_proc:
+		_pcm_proc 4, 1
+		jmp		.end_ch2
+
+	.endif
 
 	.endp
 

@@ -139,11 +139,6 @@ char	lfo_step[MAX_CH];
 char	noise_freq[2];
 char	noise_sw[2];
 
-int song_track_table; /* 0 */
-int song_bank_table; /* 7 */
-int song_loop_table; /* 1 */
-int song_loop_bank; /* 28*/
-
 /* PCMドライバ */
 #include "xpcmdrv.c"
 
@@ -172,31 +167,13 @@ int song_loop_bank; /* 28*/
 
 ; VSYNC割り込みフック設定
 	.proc _drv_setintr
-  sei
+
 	stw   #_vsync_drv, vsync_hook
 	smb   #4,<irq_m		; enable new code
 	smb   #5,<irq_m		; disable system card code
-	cli
-	rts
-	.endp
 
-; 割り込み禁止
-  .proc _disable_irq
-	sei
 	rts
-	.endp
-	
-; 割り込み許可
-	.proc _enable_irq
-	cli
-	rts
-	.endp
 
-; 曲数
-	.proc _get_songmax
-	lda #0
-	ldx #TOTAL_SONGS
-	rts
 	.endp
 
 
@@ -268,35 +245,18 @@ int num;
 }
 
 /* 周波数 = 3.58MHz / 32 x (12bit value) */
-int song_addr_base;
-int song_addr_table;
 
 /* HuSIC 初期化 */
-drv_init_song(songno)
-char songno;
+drv_init()
 {
 	int i;
 	char *seq_data;
-	int song_addr_diff;
 
-	#asm
-	; drv_init_song()
-	#endasm
-		
+#asm
+; drv_init()
+#endasm
 
-	disable_irq();
 
-	songno = songno % get_songmax();
-
-	song_addr_table = sound_dat[15];
-	song_addr_base = *(song_addr_table);
-	song_addr_diff = *(song_addr_table + (songno << 1)) - song_addr_base;
-	
-	song_track_table = sound_dat[0] + song_addr_diff;
-	song_bank_table = sound_dat[7] + song_addr_diff;
-	song_loop_table = sound_dat[1] + song_addr_diff;
-	song_loop_bank = sound_dat[8] + song_addr_diff;
-	
 	ch_topbank = now_cbank();
 	seq_ptr = 0x1234;
 
@@ -304,6 +264,7 @@ char songno;
 	{
 		reg_ch = i;
 		poke( SND_SEL, i );
+
 
 		tone_sw[i] = 0xff;
 		lfo_sw[i] = 0xff;
@@ -321,8 +282,8 @@ char songno;
 		volume_envadr[i] = 0x00;
 		multi_envadr[i] = 0x00;
 
-		seq_pos[i] = *(song_track_table + (i<<1));
-		ch_bank[i] = *(song_bank_table + i);
+		seq_pos[i] = *(sound_dat[0] + (i<<1));
+		ch_bank[i] = *(sound_dat[7] + i);
 
 		snd_saw(i);
 		ch_cnt[i] = 0;
@@ -339,18 +300,7 @@ char songno;
 
 	/* 全体ボリュームは最大 */
 	poke(SND_VOL, 0xFF);
-	
-	enable_irq();
-}
 
-/* HuSIC 初期化 */
-drv_init(songno)
-char songno;
-{
-#asm
-; drv_init()
-#endasm
-  drv_init_song(songno);
 	init_pcmdrv();
 	drv_setintr();
 }
@@ -459,8 +409,8 @@ SEQ_FF:
 		/* $FF: トラック終了 */
 		chg_cbank(ch_topbank);
 
-		seq_ptr = *( song_loop_table + ( ch << 1 ) );
-		ch_nowbank = *( song_loop_bank + ch );
+		seq_ptr = *( sound_dat[1] + ( ch << 1 ) );
+		ch_nowbank = *( sound_dat[8] + ch );
 
 		chg_cbank(ch_nowbank);
 

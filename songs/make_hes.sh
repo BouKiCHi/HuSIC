@@ -57,4 +57,3 @@ then
 	rm ${ASMNAME}.lst
 	rm ${ASMNAME}.sym
 fi
-

@@ -71,6 +71,7 @@ int		mmc5_track_num = 0;			// MMC5トラック
 
 
 int		bank_sel[_TRACK_MAX];	// 0 〜 127 = バンク切り替え , 0xFF = 変更無し
+int		use_5bitpcm = 0;
 int		allow_bankswitching = 1;
 int		dpcm_bankswitch = 0;
 int		auto_bankswitch = 0;
@@ -244,8 +245,6 @@ const	char	*ErrorlMessage[] = {
   "ポルタメントに誤りがあります",  "Portamento is wrong",
 	"マルチエンベロープ設定に誤りがあります",						"Multi envelope definition is wrong",
 };
-
-
 
 enum {
 	TOO_MANY_INCLUDE_FILES = 0,
@@ -551,6 +550,7 @@ on_error:
 void getLineStatus(LINE *lptr, int inc_nest )
 {
 	const HEAD head[] = {
+		{ "#USE_5BITPCM",    _USE_5BITPCM          },
 		{ "#TITLE",          _TITLE          },
 		{ "#COMPOSER",       _COMPOSER       },
 		{ "#MAKER",          _MAKER          },
@@ -805,6 +805,9 @@ void getLineStatus(LINE *lptr, int inc_nest )
 			/* NSF mapper の bankswitching 禁止 */
 			  case _NO_BANKSWITCH:
 				allow_bankswitching = 0;
+				break;
+				case _USE_5BITPCM:
+				use_5bitpcm = 1;
 				break;
 			/* 自動バンク切り替え */
 			  case _AUTO_BANKSWITCH:
@@ -1795,7 +1798,7 @@ void getDPCM( LINE *lptr )
 							end_flag = 1;
 						} else {
 							fseek( fp, 0, SEEK_END );
-							tbl->size = ftell( fp );
+							tbl->size = (int)ftell( fp );
 							fseek( fp, 0, SEEK_SET );
 							fclose( fp );
 						}
@@ -3895,7 +3898,7 @@ char *setCommandBufN1( CMD *cmd, int com_no, char *ptr, int line, int enable )
 	}
 	ptr += cnt;
 	// パラメータ範囲チェック
-	if( 0x0008 > freq && freq >= 0x07f2 ) {
+	if( 0x0008 < freq || freq >= 0x07f2 ) {
 		dispError( ABNORMAL_PITCH_VALUE, cmd->filename, line );
 		return ptr+1;
 	}
@@ -4042,9 +4045,13 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 		{ "PR", _R_PAN,			(ALLTRACK) },
 		{ "PC", _C_PAN,			(ALLTRACK) },
 		{ "P", _PAN,			(ALLTRACK) },
+		
 		{ "W", _WAVE_CHG,		(ALLTRACK) },
 		{ "M", _MODE_CHG,		(ALLTRACK) }, // use XPCM if true
 
+
+		{ "pn", _PORT_NOTE,			(ALLTRACK) },
+		{ "p", _PORT_MODE,			(ALLTRACK) },
 
 		// { "EH",	_HARD_ENVELOPE,		(FMTRACK) },
 		// { "MHOF", _MH_OFF,		(FMTRACK) },
@@ -4203,6 +4210,7 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 				/* コマンドパラメータが0個の物 */
 					case _FMLFO_OFF:
 					case _PORTMENT: /* ポルタメント */
+					case _PORT_NOTE: /* ポルタメント初期ノート */
 				  case _SLAR:			/* スラー */
 				  case _SONG_LOOP:			/* 曲ループ */
 				  case _REPEAT_ST:		/* リピート(現状では展開する) */
@@ -4224,6 +4232,19 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 					}
 					break;
 				/* コマンドパラメータが1個の物 */
+					case _PORT_MODE:			/* ポルタメントモード */
+						ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+						if( (mml[i].enable&(1<<trk)) == 0 )
+						{
+							dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						} else
+						{
+							if( cmd->param[0] <= 0 ) {
+								// デフォルトは0
+								cmd->param[0] = 0;
+							}
+						}
+						break;
 				  case _TEMPO:			/* テンポ */
 					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
@@ -5415,8 +5436,55 @@ void doNewBank(FILE *fp, int trk, const CMD *cmd)
 	return;
 }
 
+// ポルタメントコマンド出力
+void putPortCmd(FILE *fp, int note_from, int note_to, int delta_time, int speed)
+{
+	// printf("portment: note:%d nextnote:%d delta:%d\n",
+	//	note, port_nextnote, port_delta);
+	
+	double delta = delta_time;
+	
+	delta = (delta * 128) / speed;
+	int port_from = noteToReg(note_from);
+	int port_to = noteToReg(note_to);
+	
+	// printf("portment: from:%d to:%d\n", port_from, port_to);
+	
+	double diff = ((double)(port_to - port_from)) / (delta);
+	int port_hi = (int)(diff);
+	int port_lo = (int)((diff - port_hi) * 128);
+	
+	if (port_hi > 127)
+		port_hi = 127;
+	
+	if (port_hi < -127)
+		port_hi = -127;
 
-
+	
+	if (port_lo < 0)
+		port_lo = ((0 - port_lo) & 0x7f) | 0x80;
+	
+	// printf("portment: diff:%lf hi:%d lo:0x%02x\n", diff, port_hi, port_lo);
+	
+	/* simulation */
+	/*
+	 float lo_val = ((float)(port_lo & 0x7f) / 128);
+	 int to_step = lo_val * port_delta;
+	 if (port_lo & 0x80)
+	 to_step = 0 - to_step;
+	 
+	 
+	 printf("portment: lo_val:%f to_step:%d to_calc:%d\n",
+	 lo_val,
+	 to_step,
+	 port_from + (port_hi * port_delta) + to_step);
+	 */
+	
+	
+	putAsm( fp, MCK_PORT );	// ポルタメント
+	putAsm( fp, port_hi );	// hi
+	putAsm( fp, port_lo );	// lo
+}
 
 
 
@@ -5433,6 +5501,18 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 	tbase = 0.625;
 	length = 48;
 	volume_flag = -1;
+	
+	// 次のノート
+	int port_nextnote = 0;
+
+	// ポルタメントモード
+	int port_mode = 0;
+	int port_keyon = 0;
+
+	// ノート取得フラグ
+	int flag_getnote = 0;
+	int note_data = 0;
+	int note_delta = 0;
 
 	{
 		/* テンポラリワークを作成 */
@@ -5470,7 +5550,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 		int		frame, lframe, frame_p, frame_d;
 		double	tbase_p;
 
-        int port_on = 0;
+		int skip_note = 0;
 
 		/* カウントからフレームに変換 */
 		/* なるべくキリのいい時点を起点にする */
@@ -5511,23 +5591,29 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 				CMD	*repeat_esc2_cmd_ptr = NULL;
 
 				cmd++;
-				while( 1 ) {
+				while( 1 )
+				{
 					cmd->cnt = count;
 					cmd->frm = frame;
 					cmd->lcnt = lcount;
 					cmd->lfrm = lframe;
-					if( cmd->cmd == _REPEAT_END2 ) {
+					if( cmd->cmd == _REPEAT_END2 )
+					{
 						count_t += rcount_t*(cmd->param[0]-2)+rcount_esc_t;
 						count += rcount*(cmd->param[0]-2)+rcount_esc;
 						frame += rframe*(cmd->param[0]-2)+rframe_esc;
-						if( loop_flag != 0 ) {
+					
+						if( loop_flag != 0 )
+						{
 							lcount += rcount*(cmd->param[0]-2)+rcount_esc;
 							lframe += rframe*(cmd->param[0]-2)+rframe_esc;
 						}
+						
 						/* フレーム補正 */
 						rframe_err = double2int(count_t * tbase) - frame;
 						//printf( "frame-error: %d frame\n", rframe_err );
-						if (rframe_err > 0) {
+						if (rframe_err > 0)
+						{
 							//printf( "frame-correct: %d frame\n", rframe_err );
 							if (rframe_err >= 3)
 							{
@@ -5540,101 +5626,137 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 								lframe += rframe_err;
 							}
 							*/
-						} else {
+						}
+						else
+						{
 							cmd->param[1] = 0;
 						}
-						if (repeat_esc_flag) {
+						
+						if (repeat_esc_flag)
+						{
 							// 繰り返し回数を対応する\\コマンドにも
 							repeat_esc2_cmd_ptr->param[0] = cmd->param[0];
 						}
 						break;
 
-					} else if( cmd->cmd == _REPEAT_ESC2 ) {
+					} else if ( cmd->cmd == _REPEAT_ESC2 )
+					{
 						repeat_esc_flag = 1;
 						repeat_esc2_cmd_ptr = cmd;
-					} else if( cmd->cmd <= MAX_NOTE || cmd->cmd == _REST || cmd->cmd == _TIE
-							|| cmd->cmd == _KEY || cmd->cmd == _NOTE || cmd->cmd == _WAIT || cmd->cmd == _KEY_OFF ) {
-
-                        // ポルタメント時にはスキップ
-                        if (port_on && (cmd->cmd <= MAX_NOTE || cmd->cmd == _KEY))
-                        {
-                            port_on = 0;
-                        }
-                        else
-                        {
-                            count_t += cmd->len;
-                            rcount_t += cmd->len;
-                            frame_p = rframe;
-                            rframe = double2int(rcount_t * tbase);
-                            frame_d = rframe - frame_p;
-                            count += cmd->len;
-                            frame += frame_d;
-                            /* 対ループずれ対策 */
-                            if( loop_flag != 0 ) {
-                                lcount += cmd->len;
-                                lframe += frame_d;
-                            }
-                            rcount += cmd->len;
-                            if( repeat_esc_flag == 0 ) {
-                                rcount_esc_t += cmd->len;
-                                rcount_esc += cmd->len;
-                                rframe_esc += frame_d;
-                            }
-                        }
 					}
-                    else if ( cmd->cmd == _PORTMENT )
-                    {
-                        port_on = 1;
-                    }
-                    else if( cmd->cmd == _TEMPO ) {
+					else if ( cmd->cmd <= MAX_NOTE ||
+										cmd->cmd == _REST ||
+										cmd->cmd == _TIE ||
+										cmd->cmd == _KEY ||
+										cmd->cmd == _NOTE ||
+										cmd->cmd == _WAIT ||
+										cmd->cmd == _KEY_OFF )
+					{
+						
+						// ポルタメント時には次の音符をスキップ
+						if (skip_note && (cmd->cmd <= MAX_NOTE || cmd->cmd == _KEY))
+						{
+							skip_note = 0;
+						}
+						else
+						{
+							count_t += cmd->len;
+							rcount_t += cmd->len;
+							frame_p = rframe;
+							rframe = double2int(rcount_t * tbase);
+							frame_d = rframe - frame_p;
+							count += cmd->len;
+							frame += frame_d;
+							/* 対ループずれ対策 */
+							if( loop_flag != 0 )
+							{
+								lcount += cmd->len;
+								lframe += frame_d;
+							}
+							rcount += cmd->len;
+							
+							if( repeat_esc_flag == 0 )
+							{
+								rcount_esc_t += cmd->len;
+								rcount_esc += cmd->len;
+								rframe_esc += frame_d;
+							}
+						}
+					}
+					else
+					if ( cmd->cmd == _PORTMENT || cmd->cmd == _PORT_NOTE )
+					{
+							skip_note = 1;
+					}
+					else if( cmd->cmd == _TEMPO )
+					{
 						tbase_p = tbase;
 						tbase = (double)_BASETEMPO / (double)cmd->param[0];
 						count_t = count_t * tbase / tbase_p;
 						rcount_t = rcount_t * tbase / tbase_p;
 						rcount_esc_t = rcount_esc_t * tbase / tbase_p;
-					} else if( cmd->cmd == _TEMPO2 ) {
+					}
+					else if( cmd->cmd == _TEMPO2 )
+					{
 						tbase_p = tbase;
 						tbase = (double)cmd->param[0] * (double)cmd->param[1] / _BASE;
 						count_t = count_t * tbase / tbase_p;
 						rcount_t = rcount_t * tbase / tbase_p;
 						rcount_esc_t = rcount_esc_t * tbase / tbase_p;
-					} else if( cmd->cmd == _SONG_LOOP ) {
+					}
+					else if( cmd->cmd == _SONG_LOOP )
+					{
 						loop_flag = 1;
 					}
 					cmd++;
 				}
-			} else if( cmd->cmd <= MAX_NOTE || cmd->cmd == _REST || cmd->cmd == _TIE
-					|| cmd->cmd == _KEY || cmd->cmd == _NOTE || cmd->cmd == _WAIT || cmd->cmd == _KEY_OFF ) {
-                if ( port_on && (cmd->cmd <= MAX_NOTE || cmd->cmd == _KEY) )
-                {
-                    port_on = 0;
-                }
-                else
-                {
-                    count_t += cmd->len;
-                    frame_p = frame;
-                    frame = double2int(count_t * tbase);
-                    frame_d = frame - frame_p;
-                    count += cmd->len;
+			} else if(
+								cmd->cmd <= MAX_NOTE ||
+								cmd->cmd == _REST ||
+								cmd->cmd == _TIE ||
+								cmd->cmd == _KEY ||
+								cmd->cmd == _NOTE ||
+								cmd->cmd == _WAIT ||
+								cmd->cmd == _KEY_OFF )
+			{
+					// スキップする音符
+					if ( skip_note && (cmd->cmd <= MAX_NOTE || cmd->cmd == _KEY) )
+					{
+							skip_note = 0;
+					}
+					else
+					{
+							count_t += cmd->len;
+							frame_p = frame;
+							frame = double2int(count_t * tbase);
+							frame_d = frame - frame_p;
+							count += cmd->len;
 	/* 対ループずれ対策 */
-                    if( loop_flag != 0 ) {
-                        lcount += cmd->len;
-                        lframe += frame_d;
-                    }
-                }
-            } else if ( cmd->cmd == _PORTMENT )
-            {
-                port_on = 1;
-            }
-            else if( cmd->cmd == _TEMPO ) {
+							if( loop_flag != 0 ) {
+									lcount += cmd->len;
+									lframe += frame_d;
+							}
+					}
+			} else
+			if ( cmd->cmd == _PORTMENT || cmd->cmd == _PORT_NOTE )
+			{
+					skip_note = 1;
+			}
+      else
+			if( cmd->cmd == _TEMPO )
+			{
 				tbase_p = tbase;
 				tbase = (double)_BASETEMPO / (double)cmd->param[0];
 				count_t = count_t * tbase_p / tbase;
-			} else if( cmd->cmd == _TEMPO2 ) {
+			}
+			else if( cmd->cmd == _TEMPO2 )
+			{
 				tbase_p = tbase;
 				tbase = (double)cmd->param[0] * (double)cmd->param[1] / _BASE;
 				count_t = count_t * tbase_p / tbase;
-			} else if( cmd->cmd == _SONG_LOOP ) {
+			}
+			else if( cmd->cmd == _SONG_LOOP )
+			{
 				loop_flag = 1;
 			}
 		} while( cmd++->cmd != _TRACK_END );
@@ -6018,8 +6140,21 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 				// putAsm( fp, cmd->param[0] & 0xff );
 				// cmd++;
 				// break;
-			  case _TRACK_END:
+				case _PORT_MODE: // ポルタメントモード
+					port_mode = cmd->param[0];
+
+					// ポルタメントキーオンフラグ初期化
+					if (port_mode == 0)
+						port_keyon = 0;
+					
+					cmd++;
 				break;
+				case _PORT_NOTE: // ポルタメントノート取得コマンド
+					flag_getnote = 1;
+					cmd++;
+				break;
+				case _TRACK_END:
+					break;
 			  case _KEY:
 			  default:
 				{
@@ -6028,89 +6163,91 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 					int gate_time; /* 発音からキーオフまでのフレーム数 */
 					int left_time; /* キーオフから次のイベントまでの残りフレーム数 */
 
-					if (cmdtemp.cmd == _KEY) {
+					if (cmdtemp.cmd == _KEY)
+					{
 						note = cmd->param[0] & 0xffff;
-					} else {
+					}
+					else
+					{
 						note = cmdtemp.cmd;
-						if (note < MIN_NOTE || MAX_NOTE < note) {
+						if (note < MIN_NOTE || MAX_NOTE < note)
+						{
 							dispError( COMMAND_NOT_DEFINED, cmd->filename, cmd->line );
 							cmd++;
 							break;
 						}
 					}
-
+					
 					delta_time = 0;
 					cmd = getDeltaTime(cmd, &delta_time, 1);
 
 					// 次にスラーがある場合はqは無視される
-					if (!isSlarUntilNextFrame(cmd))
+					if (!isSlarUntilNextFrame(cmd) && port_mode == 0)
 					{
+						// スラーなし
 						gate_time = calcGateTime(delta_time, &(ps.gate_q));
 					}
 					else
 					{
+						// スラーあり
 						gate_time = delta_time;
 					}
 
 					left_time = delta_time - gate_time;
+					
+					// ノート取得で終了
+					if (flag_getnote)
+					{
+						flag_getnote = 0;
+						note_data = note;
+						note_delta = delta_time;
+						break;
+					}
 
 					// printf("delta:%d gate:%d left:%d\n", delta_time, gate_time, left_time);
 
 					/* ポルタメント */
 					if (cmd->cmd == _PORTMENT)
 					{
-							int port_nextnote = 0;
-
 							cmd++;
-
-							if (cmd->cmd == _KEY) {
+						
+							// 直接指定 or ノート指定 or エラー
+							if (cmd->cmd == _KEY)
+							{
 								port_nextnote = cmd->param[0] & 0xffff;
-							} else {
-                                if (cmd->cmd <= MAX_NOTE)
-                                    port_nextnote = cmd->cmd;
-                                else
-                                {
-                                    dispError( PORT_IS_WRONG, cmd->filename, cmd->line );
-                                    break;
-                                }
 							}
-                            cmd++;
-
-							// printf("portment: note:%d nextnote:%d delta:%d\n",
-							//	note, port_nextnote, port_delta);
-
-							int port_from = noteToReg(note);
-							int port_to = noteToReg(port_nextnote);
-
-							// printf("portment: from:%d to:%d\n", port_from, port_to);
-
-							double diff = ((double)(port_to - port_from)) / (delta_time);
-							int port_hi = (int)(diff);
-							int port_lo = (int)((diff - port_hi) * 128);
-
-							if (port_lo < 0)
-								port_lo = ((0 - port_lo) & 0x7f) | 0x80;
-
-							// printf("portment: diff:%lf hi:%d lo:0x%02x\n", diff, port_hi, port_lo);
-
-							/* simulation */
-							/*
-							float lo_val = ((float)(port_lo & 0x7f) / 128);
-							int to_step = lo_val * port_delta;
-							if (port_lo & 0x80)
-								to_step = 0 - to_step;
-
-
-							 printf("portment: lo_val:%f to_step:%d to_calc:%d\n",
-								lo_val,
-								to_step,
-								port_from + (port_hi * port_delta) + to_step);
-							*/
-
-
-							putAsm( fp, MCK_PORT );	// ポルタメント
-							putAsm( fp, port_hi );	// hi
-							putAsm( fp, port_lo );	// lo
+							else
+							if (cmd->cmd <= MAX_NOTE)
+									port_nextnote = cmd->cmd;
+							else
+							{
+								dispError(PORT_IS_WRONG, cmd->filename, cmd->line);
+								break;
+							}
+					
+							cmd++;
+							// ポルタメントコマンド発行
+							putPortCmd(fp, note, port_nextnote, delta_time, 128);
+					}
+					
+					/* ポルタメントモード */
+					if (port_mode > 0)
+					{
+						putPortCmd(fp, note_data, note, delta_time, port_mode);
+						// 発音開始音程の設定と次のポルタメント開始音程の設定
+						int temp_note = note_data;
+						note_data = note;
+						note = temp_note;
+						// ポルタメントモード時に一度も発音していない
+						if (!port_keyon)
+						{
+							port_keyon = 1;
+						}
+						else
+						{
+							// スラーにする
+							putAsm( fp, MCK_SLAR );
+						}
 					}
 
 					if( delta_time == 0 ) {
@@ -6119,30 +6256,34 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 					}
 
 					// 最後に書き込んだエンべロープor音量と、現在の通常のエンベロープor音量が違う
-					if( ps.last_written_env != ps.env ) {
+					if( ps.last_written_env != ps.env )
+					{
 						putAsm( fp, MCK_SET_VOL );	// エンベロープ出力
 						putAsm( fp, ps.env );
 						ps.last_written_env = ps.env;
 					}
 
 					// 最後に書き込んだ音色と、現在の通常の音色が違う
-					if( ps.last_written_tone != ps.tone ) {
+					if( ps.last_written_tone != ps.tone )
+					{
 						putAsm( fp, MCK_SET_TONE );	// 音色出力
 						putAsm( fp, ps.tone );
 						ps.last_written_tone = ps.tone;
 					}
 
 					// 周波数直接指定
-					if (cmdtemp.cmd == _KEY) {
+					if (cmdtemp.cmd == _KEY)
+					{
 						putAsm( fp, MCK_DIRECT_FREQ );
 						putAsm( fp,  note & 0xff );
 						putAsm( fp, (note>>8) & 0x0f);
 					}
 					else
 					{
-						if( note < 0 ) {				/* 最低音の対策 */
+						/* 最低音の対策 */
+						if( note < 0 )
 							note += 16;
-						}
+						
 						// ノートを書き込む
 						putAsm( fp, note );
 
@@ -6581,6 +6722,13 @@ int data_make( void )
 			}
 			fprintf(fp, "\t.endm\n");
 		}
+
+		// #USE_5BITPCM
+		if (use_5bitpcm)
+			fprintf( fp, "USE_5BITPCM\t\tequ\t1\n");
+		else
+			fprintf( fp, "USE_5BITPCM\t\tequ\t0\n");
+
 
 		/* 出力ファイルにタイトル/作曲者/打ち込み者の情報をマクロとして書き込み */
 		writeSongInfoMacro(fp);

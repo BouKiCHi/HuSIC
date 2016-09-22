@@ -130,7 +130,7 @@ char *readTextFile( char *filename )
 	}
 	/* サイズを取得 */
 	fseek(fp, 0L, SEEK_END);
-	sizeb = ftell(fp);
+	sizeb = (int)ftell(fp);
 	fseek(fp, 0L, SEEK_SET);
 	/*
 	if (sizeb == 0) {

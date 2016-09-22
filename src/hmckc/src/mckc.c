@@ -6,7 +6,7 @@
 
 #include	"mckc.h"
 
-#define HMCKC_VER "Modified for HuSIC Version 12\n"
+#define HMCKC_VER "Modified for HuSIC Version 13\n"
 
 
 extern void splitPath( const char *ptr, char *path, char *name, char *ext );
@@ -84,9 +84,9 @@ int main( int argc , char *argv[] )
 	printf( "MML to MCK Data Converter Ver %d.%02d by Manbow-J\n",
 			(VersionNo/100), (VersionNo%100) );
 	//printf("patches by [OK] and 2ch mck thread people\n");
-	printf(patchstr);
-	printf(hogereleasestr);
-	printf(HMCKC_VER);
+	printf("%s", patchstr);
+	printf("%s", hogereleasestr);
+	printf("%s", HMCKC_VER);
 	printf("Built at %s\n", __DATE__);
 // コマンドライン解析
 	if( argc == 1 ) {
@@ -96,7 +96,7 @@ int main( int argc , char *argv[] )
 
 	for ( i = 1; i < argc; i++ ) {
 		// スイッチ？
-		if ( (argv[i][0] == '-')  ) {
+		if ( argv[i][0] == '-' ) {
 			switch( toupper( argv[i][1] ) ) {
 			  case 'H':
 			  case '?':

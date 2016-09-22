@@ -1,0 +1,43 @@
+#USE_5BITPCM
+
+@WT0={
+$13,$19,$1b,$18,$13,$0f,$10,$14,
+$1b,$1f,$1e,$19,$12,$0c,$0a,$0d,
+$12,$15,$13,$0d,$06,$01,$00,$04,
+$0b,$0f,$10,$0c,$07,$04,$06,$0c
+}
+
+@EN0 = {  | 2 2 1 2 2 2 1 }
+
+@XPCM0 = { "tone.pd5" , 0 }
+
+EF t120 v31 o4 l4 W0
+EF PC0
+E PL15
+F PR15
+
+EF L
+
+; F M0 c g c g
+; F M1 n0 r n0 r
+; F M0 c g c g
+
+E M1 n0 n0 n0 n0
+F M1 r r n0 n0
+
+
+E M1 n0 r n0 r
+E M0 c g c g
+E M1 n0 r n0 r
+
+F r r r r
+F r r r r
+F r r r r
+
+F M1 n0 r n0 r
+F M0 c g c g
+F M1 n0 r n0 r
+
+E r r r r
+E r r r r
+E r r r r

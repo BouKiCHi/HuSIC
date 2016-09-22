@@ -1,6 +1,5 @@
 ; sample_port.mml
 ; Portamento
-; You may use this as a template.
 ;
 
 @WT0={
@@ -14,14 +13,23 @@
 
 A L t120 l2 W0 o4 @v0
 
+A l4
+; A o3 c_g&g_>c <
+
+; 
+A pn c p128 defgab>c p0 <
+; A c e g
+
+
 ; A l8 c_e ; 24count 15frame
 ; A l8 c ; 24count 15frame
 
+; A l4 c_g&g r2 c2_g r2
 
-A l8 c r d r e r
-A c_d r d_e r e_c r
+; A l8 c r d r e r
+; A c_d r d_e r e_c r
 
-A c4 r4 c4_g r4
+; A c4 r4 c4_g r4
 
 ; c2_g
 ; A d_e

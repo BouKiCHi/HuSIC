@@ -14,10 +14,8 @@ CC = gcc
 
 
 ifeq ($(OS),Windows_NT)
-SCRSFX = .bat
 EXESFX = .exe
 else
-SCRSFX = .sh
 EXESFX =
 endif
 
@@ -99,13 +97,15 @@ tests :
 	cd tests/ ; sh build.sh
 
 husic :
-	cd src/husic/ ; compile$(SCRSFX)
+	cd src/husic/ ; sh compile.sh
 
 husic_dbg :
-		cd src/husic/ ; compile_dbg$(SCRSFX)
+		cd src/husic/ ; sh compile_dbg.sh
 
 
 full : bin husic
+
+
 
 
 zip: distclean

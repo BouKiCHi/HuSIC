@@ -2,12 +2,6 @@
 hmckc - ppmckc release 9 for HuSIC
 modified by BouKiCHi
 
-2016-07-09 version 14
- added function to make multi track file.
-
-201x-xx-xx version 13
-
-
 2015-10-05 version 12
   added x<num> in envelope definition.
   (num = fill the number of times with previous value ).

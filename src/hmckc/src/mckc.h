@@ -61,6 +61,7 @@ typedef struct st_line {
 #define _AUTO_BANKSWITCH	20
 #define _PITCH_CORRECTION		21
 #define _OCTAVE_OFS		22
+#define _USE_5BITPCM 23
 
 #define	_SET_EFFECT		0x20
 #define	_SET_TONE		0x21
@@ -251,6 +252,8 @@ enum {
 
 	_SLAR_ONE,
 	_PORTMENT,
+	_PORT_NOTE,
+	_PORT_MODE,
 	_MASVOL,
 
 	_PAN_ENV,

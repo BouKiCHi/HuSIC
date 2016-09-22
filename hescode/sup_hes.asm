@@ -125,9 +125,6 @@ joybuf6:	.ds 5
 joytmp:		.ds 5
 joytmp6:	.ds 5
 
-song_reqno:	.ds 1 
-
-
 	.if (CDROM)
 ovl_running	.ds   1 ; overlay # that is currently running
 cd_super	.ds   1 ; Major CDROM version #
@@ -137,7 +134,7 @@ ram_vsync_hndl	.ds   25
 ram_hsync_hndl	.ds   25
 	.endif	; (CDROM)
 
-;ï¿½ï¿½ï¿½[ STARTUP CODE ]ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+;±±±[ STARTUP CODE ]±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
 
 ; Let's prepare this secondary libray bank first, for use later.
 ; The reason, as you will see, is because code for a given function
@@ -361,11 +358,9 @@ _boot:
 ;-----------[HES HEADER]-------------------------
 	.org  $E000
 
-	db	"HESM"
-	db	$00 ; version
-	db	$00 ; start song
+	db	"HESM",$00,$00
 	dw	_hes_init
-	db	$ff,$f8,$01,$02,$00,$05,$00,$00 ; MPR0-MPR7
+	db	$ff,$f8,$01,$02,$00,$05,$00,$00
 	db	"DATA"
 	dw	((_nb_bank%8)*$2000)-$20  ; size low
 	dw	(_nb_bank-1)/8 ; size high
@@ -381,7 +376,6 @@ _hes_init:
 	sei			; disable interrupts 
 	csh			; select the 7.16 MHz clock
 	cld			; clear the decimal flag 
-	sta   song_reqno ; song request no
 	lda   #$FF		; map the I/O bank in the first page
 	tam   #0
 	lda   #$F8		; and the RAM bank in the second page
@@ -438,8 +432,6 @@ _hes_init:
 	tam   #4		; (ie. $8000-$9FFF)
 
 	map   _drv_init
-	lda   #0
-	ldx   song_reqno
 	jsr   _drv_init
 
 	smb   #4,<irq_m
@@ -880,7 +872,7 @@ _system:
 	jmp   _restart		; restart
        .endif	; (DEVELO)
 
-;ï¿½ï¿½ï¿½[ INTERRUPT CODE ]ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+;±±±[ INTERRUPT CODE ]±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
 
 _rts:
 	rts
@@ -1278,7 +1270,7 @@ _nmi:
        .endif	; !(CDROM)
 
 
-;ï¿½ï¿½[ DATA ]ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+;±±[ DATA ]±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
 
 ; ----
 ; font
@@ -1294,7 +1286,7 @@ font_table:
 	.endif	; HUC
 
 
-;ï¿½ï¿½[ LIBRARY ]ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+;±±[ LIBRARY ]±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
 
 ; ----
 ; standard library
@@ -1495,7 +1487,7 @@ wait_vsync:
        .include  "joypad.asm"	; read joypad values
 
 
-;ï¿½ï¿½[ USER PROGRAM ]ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+;±±[ USER PROGRAM ]±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
 
 ;	.nomlist
 ;	.list

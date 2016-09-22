@@ -14,6 +14,5 @@ SET PCE_INCLUDE=%TOP_DIR%\;%TOP_DIR%\hescode\;%TOP_DIR%\include\pce
 
 @ECHO Copy to hescode
 copy main.s "%TOP_DIR%\hescode\"
-del main.s
 
 pause
