@@ -1,0 +1,11 @@
+; sample_xpcm.mml 
+; convert to pd4
+; >xpcm pcm.wav
+;
+; You may use this as a template
+
+@XPCM0 = { "pcm.pd4",0 }
+
+ABCDEF t120 
+F M1 n0 r n0 r n0 r n0 n0 n0 n0 
+
