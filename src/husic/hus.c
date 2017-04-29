@@ -34,8 +34,8 @@
 #define SND_PAN 0x0805 /* Pan Volume */
 #define SND_WAV 0x0806 /* Wave Buffer */
 #define SND_NOI 0x0807 /* Noise Mode */
-#define SND_LFO 0x0808 /* LFO */
-#define SND_LTR 0x0809 /* LFO trig */
+#define SND_LFO 0x0808 /* LFO freq */
+#define SND_LTR 0x0809 /* LFO trig/control */
 
 
 /*
@@ -678,7 +678,7 @@ SEQ_EE:
 #endasm
 
 #asm
-; $ED: HWLFOモード
+; $ED: HWLFOモード(FMLFO)
 SEQ_ED:
 #endasm
  /* $ED: HW LFO mode */
@@ -686,12 +686,12 @@ SEQ_ED:
 		if ( j == 0xff )
 		{
 			/* off */
-			poke( SND_LTR , 0x00 );
+			poke( SND_LTR , 0x80 );
 		}
 		else
 		{
 			/* bit7 as high is turned on the hardware LFO */
-			poke( SND_LTR , j | 0x80 );
+			poke( SND_LTR , j & 0x03 );
 		}
 
 #asm
@@ -779,7 +779,7 @@ SEQ_E6:
 SEQ_EC:
 #endasm
 
- /* $EC: HW LFO 周波数 */
+ /* $EC: HW LFO(FMLFO) 周波数 */
 		j = *(++seq_ptr); seq_ptr++;
 		poke( SND_LFO , j );
 

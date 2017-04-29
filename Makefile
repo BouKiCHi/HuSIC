@@ -11,11 +11,12 @@ ZIPNAME = husic_$(DATE).zip
 
 PFX =
 CC = gcc
-
+CMD = 
 
 ifeq ($(OS),Windows_NT)
 SCRSFX = .bat
 EXESFX = .exe
+CMD = cmd.exe /c
 else
 SCRSFX = .sh
 EXESFX =
@@ -79,7 +80,7 @@ xpcm :
 	make EXESFX=$(EXESFX) clean
 
 huc :
-	rm -f src/huc/bin
+	rm -rf src/huc/bin
 	mkdir src/huc/bin
 
 	cd src/huc/ ; \
@@ -99,11 +100,11 @@ tests :
 	cd tests/ ; sh build.sh
 
 husic :
-	cd src/husic/ ; compile$(SCRSFX)
+	@echo \#define PRG_TITLE \"HuSIC $(DATE)\" > src/husic/title.h
+	cd src/husic/ ; $(CMD) compile$(SCRSFX)
 
 husic_dbg :
 		cd src/husic/ ; compile_dbg$(SCRSFX)
-
 
 full : bin husic
 

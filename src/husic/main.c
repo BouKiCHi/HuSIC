@@ -153,10 +153,13 @@ __vs_bx    .ds 2
  /* HuSIC's core( main code ) */
 #include "hus.c"
 
+/* title */
+#include "title.h"
+
 display_title()
 {
   cls();
-  put_string("HuSIC 160709", 5, 2);  
+  put_string(PRG_TITLE, 5, 2);  
 }
 
 select_song()
