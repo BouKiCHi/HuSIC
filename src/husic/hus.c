@@ -690,7 +690,7 @@ SEQ_ED:
 		}
 		else
 		{
-			/* bit7 as high is turned on the hardware LFO */
+			/* bit7 is reset? */
 			poke( SND_LTR , j & 0x03 );
 		}
 

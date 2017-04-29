@@ -6575,7 +6575,7 @@ int data_make( void )
 
 //	fprintf( fp, "\t.bank\t0\n");
 	fprintf( fp, "\t.include \"define.inc\"\n");
-	fprintf( fp, "\t.if TOTAL_SONGS > 1\n");
+	// fprintf( fp, "\t.if TOTAL_SONGS > 1\n");
 	fprintf( fp, "song_addr_table:\n" );
 	for (mml_idx = 0; mml_idx < mml_num; mml_idx++) {
 		setSongLabel();
@@ -6589,30 +6589,33 @@ int data_make( void )
 		fprintf( fp, "\tdw\t%s_bank_table\n", songlabel);
 	}
 	fprintf( fp, "\t.endif ; ALLOW_BANK_SWITCH\n" );
-	fprintf( fp, "\t.endif ; TOTAL_SONGS > 1\n" );
+	// fprintf( fp, "\t.endif ; TOTAL_SONGS > 1\n" );
 
 	for (mml_idx = 0; mml_idx < mml_num; mml_idx++) {
 		setSongLabel();
-		fprintf( fp, "sound_data_table:\n" );
 
-//		fprintf( fp, "%s_track_table:\n", songlabel );
+		// fprintf( fp, "sound_data_table:\n" );
+		fprintf( fp, "%s_track_table:\n", songlabel );
 		for( i = 0; i < _TRACK_MAX; i++ ){
 			if (trk_flag[i]) fprintf( fp, "\tdw\t%s_%02d\n", songlabel, i );
 		}
 
 		fprintf( fp, "\t.if (ALLOW_BANK_SWITCH)\n" );
-		fprintf( fp, "sound_data_bank:\n" );
-		//fprintf( fp, "%s_bank_table:\n", songlabel );
+
+		// fprintf( fp, "sound_data_bank:\n" );
+		fprintf( fp, "%s_bank_table:\n", songlabel );
 		for( i = 0; i < _TRACK_MAX; i++ ){
 			if (trk_flag[i]) fprintf( fp, "\tdb\tbank(%s_%02d)\n", songlabel, i );
 		}
 
-		fprintf( fp, "loop_point_table:\n" );
+		//fprintf( fp, "loop_point_table:\n" );
+		fprintf( fp, "%s_loop_table:\n", songlabel );
 		for( i = 0; i < _TRACK_MAX; i++ ){
 			if (trk_flag[i]) fprintf( fp, "\tdw\t%s_%02d_lp\n", songlabel, i );
 		}
 
-		fprintf( fp, "loop_point_bank:\n" );
+		// fprintf( fp, "loop_point_bank:\n" );
+		fprintf( fp, "%s_loop_bank:\n", songlabel );
 		for( i = 0; i < _TRACK_MAX; i++ ){
 			if (trk_flag[i]) fprintf( fp, "\tdb\tbank(%s_%02d_lp)\n", songlabel, i );
 		}

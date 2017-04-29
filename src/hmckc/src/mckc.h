@@ -276,7 +276,7 @@ enum {
 #define	BFME7		0x20
 
 // defination for HuSIC
-#define HULFO_TRK       TRACK(1)
+#define HULFO_TRK       (TRACK(0)|TRACK(1))
 #define HUNOISE_TRK		(TRACK(4)|TRACK(5))
 
 #define HUS_ALLTRK		(TRACK(0)|TRACK(1)|TRACK(2)|TRACK(3)|TRACK(4)|TRACK(5))

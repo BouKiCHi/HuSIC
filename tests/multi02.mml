@@ -1,0 +1,13 @@
+; sample02.mml 
+; You may use this as a template
+
+@WT0={
+$13,$19,$1b,$18,$13,$0f,$10,$14,
+$1b,$1f,$1e,$19,$12,$0c,$0a,$0d,
+$12,$15,$13,$0d,$06,$01,$00,$04,
+$0b,$0f,$10,$0c,$07,$04,$06,$0c
+}
+
+A L t120 W0 o4 v31
+A >c < bagfedc1 r cdefgab>c1 
+
