@@ -66,7 +66,7 @@ songs_clean :
 
 full_clean : huc_clean hmckc_clean xpcm_clean
 
-clean: hmckc_clean songs_clean
+clean: hmckc_clean
 
 
 hmckc :
@@ -117,7 +117,4 @@ zipclean:
 
 distclean: zipclean clean
 	rm -f src/huc/bin/*
-	find . -name ".DS*" -delete
-	find . -name "*.hes" -delete
-	find . -name "*.pce" -delete
-	find . -name "*.iso" -delete
+	
