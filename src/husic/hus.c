@@ -686,7 +686,7 @@ SEQ_ED:
 		if ( j == 0xff )
 		{
 			/* off */
-			poke( SND_LTR , 0x80 );
+			poke( SND_LTR , 0x00 );
 		}
 		else
 		{
