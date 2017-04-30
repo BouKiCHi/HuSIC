@@ -109,12 +109,20 @@ husic_dbg :
 full : bin husic
 
 
-zip: distclean
-	zip -r $(ZIP) . -x .DS\* .git\*
+zip: strips distclean
+	zip -r $(ZIP) . -x src\huc\* tests\output\* .DS\* .git\*
+
+strips:
+	strip bin/hmckc$(EXESFX)
+	strip bin/hmckc_j$(EXESFX)
+	strip bin/isolink$(EXESFX)
+	strip bin/pceas$(EXESFX)
+	strip bin/xpcm$(EXESFX)	
 
 zipclean:
 	rm -f $(ZIP)
 
 distclean: zipclean clean
 	rm -f src/huc/bin/*
+	rm -f bin/huc$(EXESFX)
 	
