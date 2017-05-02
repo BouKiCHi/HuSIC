@@ -90,6 +90,8 @@
 | FSOF | FMLFO　オフ | |
 | FS&lt;num&gt; | FMLFO 有効/コントロール | num=0～3 |
 | FF&lt;num&gt; | FMLFO 周波数 | |
+| FR | FMLFO　リセット | |
+| FM | FMLFO　モジュレータ周波数 | num=(oct<<4)|(note%12) |
 | MV&lt;num&gt; | マスターボリューム |左右4bit、16段階。MV$ccなどと設定。 |
 | N&lt;num&gt; | ノイズスイッチ | num=1でオン |
 | PL&lt;num&gt; | パンL　音量 | |

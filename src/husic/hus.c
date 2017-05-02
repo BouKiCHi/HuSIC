@@ -683,17 +683,7 @@ SEQ_ED:
 #endasm
  /* $ED: HW LFO mode */
 		j = *(++seq_ptr); seq_ptr++;
-		if ( j == 0xff )
-		{
-			/* off */
-			poke( SND_LTR , 0x00 );
-		}
-		else
-		{
-			/* bit7 is reset? */
-			poke( SND_LTR , j & 0x03 );
-		}
-
+		poke( SND_LTR , j );
 #asm
 	jmp endpoint
 #endasm
@@ -784,7 +774,26 @@ SEQ_EC:
 		poke( SND_LFO , j );
 
 #asm
+	jmp endpoint
+; $EA: HW LFO モジュレータ周波数設定
 SEQ_EA:
+#endasm
+
+		j = *(++seq_ptr); seq_ptr++;
+		tmp = 1;
+    set_note(tmp, j);
+
+    /* 周波数データをレジスタにセットする */
+		reg_ch = tmp;
+		poke(SND_SEL, tmp);
+    poke(SND_ROU,( seq_freq[ tmp ] >> 8 ) & 0x0f);
+    poke(SND_FIN,  seq_freq[ tmp ]        & 0xff);
+		/* キーオン */
+		poke(SND_MIX, 0x80);
+
+		reg_ch = ch;
+		poke(SND_SEL, ch);
+#asm
 endpoint:
 #endasm
     } /* if ... */

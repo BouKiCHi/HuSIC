@@ -4035,8 +4035,10 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 
 		// for HuSIC
 		{ "FSOF", _FMLFO_OFF,	(HULFO_TRK) },
+		{ "FM",   _FMLFO_MODFRQ, (HULFO_TRK) },
 		{ "FS",   _FMLFO_SET,	(HULFO_TRK) },
 		{ "FF",   _FMLFO_FRQ,	(HULFO_TRK) },
+		{ "FR",   _FMLFO_RESET,	(HULFO_TRK) },
 
 		{ "MV", _MASVOL,			(ALLTRACK) },
 
@@ -4209,6 +4211,7 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 					break;
 				/* コマンドパラメータが0個の物 */
 					case _FMLFO_OFF:
+					case _FMLFO_RESET:
 					case _PORTMENT: /* ポルタメント */
 					case _PORT_NOTE: /* ポルタメント初期ノート */
 				  case _SLAR:			/* スラー */
@@ -4478,6 +4481,7 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 
 					/* HuSIC */
 					 case _FMLFO_SET:			/* LFO Trig Command */
+					 case _FMLFO_MODFRQ:			/* LFO Mod Freq Command */
 					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if(cmd->param[0] < 0 || cmd->param[0] > 255 ) {
@@ -6000,9 +6004,21 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 				  break;
 			  case _FMLFO_OFF:
 				  putAsm( fp, MCK_FMLFO_SET );
-				  putAsm( fp, 0xff );
+				  putAsm( fp, 0x00 );
 				  cmd++;
 				  break;
+			  case _FMLFO_RESET:
+				  putAsm( fp, MCK_FMLFO_SET );
+				  putAsm( fp, 0x80 );
+				  putAsm( fp, MCK_FMLFO_SET );
+				  putAsm( fp, 0x00 );
+				  cmd++;
+				  break;
+			  case _FMLFO_MODFRQ:
+				  putAsm( fp, MCK_FMLFO_MODFRQ );
+				  putAsm( fp, cmd->param[0]&0xff );
+				  cmd++;
+				  break;					
 			  case _L_PAN:
 				  panvol = (panvol&0x0f)| ((cmd->param[0]&0x0f)<<4);
 				  putAsm( fp, MCK_PAN );

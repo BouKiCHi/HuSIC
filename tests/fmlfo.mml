@@ -22,19 +22,7 @@ $00,$00,$00,$00,$00,$00,$00,$00
 
 
 AB t180 v31 o4 
-A W0 r 
-B W2
-A c2 
-A FS2 c2
-A FS1 c2
-A FS0 c2 
-A FF32 FS2
-A c2 r8
-A FF64 FS1
-A c2 r8 
-A FF96 FS1
-A c2 r8 
-A FF128 FS1
-A c2 r8 
+A W0 r FS1 FF16 FM1 cdefg FS2 cdefg
+B v0 W2
 
 

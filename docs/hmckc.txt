@@ -52,8 +52,10 @@ List of available instructions in HuSIC
 @XPCM : XPCM definition
 @WT   : WaveTone definition
 FSOF  : FMLFO off
+FM    : FMLFO modulator frequency
 FS    : FMLFO on
 FF    : FMLFO frequency
+FR    : FMLFO reset
 N     : NOISE sw
 PL    : Left pan
 PR    : Right pan

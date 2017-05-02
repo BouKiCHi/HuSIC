@@ -249,6 +249,8 @@ enum {
 	_FMLFO_SET,
 	_FMLFO_OFF,
 	_FMLFO_FRQ,
+	_FMLFO_RESET,
+	_FMLFO_MODFRQ,
 
 	_SLAR_ONE,
 	_PORTMENT,
@@ -298,6 +300,7 @@ enum {
 	MCK_RESET_IGNORE = 0xe7,
 	MCK_MASVOL = 0xe8,
 	MCK_SLAR = 0xe9,
+	MCK_FMLFO_MODFRQ = 0xea,
 	MCK_PORT = 0xeb,
 	MCK_FMLFO_FRQ = 0xec,
 	MCK_FMLFO_SET = 0xed,

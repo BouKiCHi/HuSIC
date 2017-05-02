@@ -30,8 +30,6 @@ EXESFX = .exe
 
 endif
 
-
-
 ZIP = $(ZIPNAME)
 
 all : hmckc
@@ -110,7 +108,7 @@ full : bin husic
 
 
 zip: strips distclean
-	zip -r $(ZIP) . -x src\huc\* tests\output\* .DS\* .git\*
+	zip -r $(ZIP) . -x bin\huc.exe src\huc\* tests\output\* .DS\* .git\*
 
 strips:
 	strip bin/hmckc$(EXESFX)
