@@ -16,7 +16,7 @@
 #endif
 
 // 拡張子
-#define EXT_PD5 ".PD5"
+#define EXT_PD8 ".PD8"
 #define EXT_PD4 ".PD4"
 
 // PCMカットサイズ
@@ -214,6 +214,7 @@ int wav_find_data(struct wavfmt_t *lf)
     return -1;
 }
 
+#if 0
 // PCM出力
 void wav_buffer_out(struct wavfmt_t *lf, long mix_buf)
 {
@@ -249,6 +250,68 @@ void wav_buffer_out(struct wavfmt_t *lf, long mix_buf)
 		
 	}
 }
+#endif
+
+
+
+// PCMシフト出力
+void wav_buffer_shift_out(struct wavfmt_t *lf, long mix_buf)
+{
+	// ビット数
+	int use_bits = (PCM_BUFBITS - lf->pcm.leftbits);
+	
+	// バッファにコピーする
+	lf->pcm.buffer |= (mix_buf >> use_bits);
+	
+	// サンプリングビットを引く
+	lf->pcm.leftbits -= lf->pcm.outbit;
+	
+	// 残りのビットを空にする
+	if (lf->pcm.leftbits > 0)
+	{
+		lf->pcm.buffer &= (PCM_BUFMASK << lf->pcm.leftbits);
+	}
+	else
+	{
+		// バッファが埋まった
+		fputc(lf->pcm.buffer, lf->pcm.outfp);
+		
+		// 出力サイズ増加
+		lf->pcm.outsize++;
+		
+		// バッファクリア
+		lf->pcm.buffer = 0;
+		lf->pcm.leftbits += PCM_BUFBITS;
+		
+		// 入力サンプルのあまりを出力する
+		lf->pcm.buffer |= (mix_buf << (PCM_BUFBITS - use_bits));
+		lf->pcm.buffer &= (PCM_BUFMASK << (lf->pcm.leftbits));
+		
+	}
+}
+// PCM出力
+void wav_buffer_out(struct wavfmt_t *lf, long mix_buf)
+{
+  if (lf->pcm.outbit != 5) { 
+    wav_buffer_shift_out(lf, mix_buf);
+    return;
+  }
+
+	// ビット数
+	int use_bits = (PCM_BUFBITS - lf->pcm.outbit);
+	// バッファにコピーする
+	lf->pcm.buffer = (mix_buf >> use_bits) & (0xff >> use_bits);
+
+	fputc(lf->pcm.buffer, lf->pcm.outfp);
+		
+  // 出力サイズ増加
+  lf->pcm.outsize++;
+  
+  // バッファクリア
+  lf->pcm.buffer = 0;
+  lf->pcm.leftbits += PCM_BUFBITS;  
+}
+
 
 // PCM出力準備
 void wav_push_sample(struct wavfmt_t *lf)
@@ -498,7 +561,7 @@ void wav_write_pcm(struct wavfmt_t *lf, const char *inname, const char *ofn)
 	{
 		outname = outname_body;
 		// 拡張子
-		char *ext = (lf->pcm.outbit == 5 ? EXT_PD5 : EXT_PD4);
+		char *ext = (lf->pcm.outbit == 5 ? EXT_PD8 : EXT_PD4);
 		
 		// ファイル名
 		make_filename(outname_body, inname, ext);
@@ -621,24 +684,17 @@ int main(int argc, char *argv[])
   }
 	
 	// テストデータ
-	if (flag_maketest)
-	{
+	if (flag_maketest) {
 		wavf.pcm.outbit = 5;
-		
 
 		// 出力ファイルを開く
-		wav_write_pcm(&wavf, "testdata.pd4", NULL);
+		wav_write_pcm(&wavf, "testdata.pd5", NULL);
 		
 		//　ファイルポインタチェック
-		if (!wavf.pcm.outfp)
-			goto err_outfile;
-		
+		if (!wavf.pcm.outfp) goto err_outfile;
 		
 		// バッファ出力
-		for(i = 0; i < 5120; i++)
-		{
-			wav_buffer_out(&wavf, (i & 0x1f) << 3);
-		}
+		for(i = 0; i < 5120; i++) wav_buffer_out(&wavf, (i & 0x1f) << 3); 
 		
 		// 閉じる
 		wav_close(&wavf);
@@ -646,23 +702,20 @@ int main(int argc, char *argv[])
 	}
 
   // 逐次処理
-  for(i = optind; i < argc; i++)
-  {
+  for(i = optind; i < argc; i++) {
     char *inname = argv[i];
 
     // ファイルを開く
     printf("File:%s\n", inname);
 
     wavf.fp = fopen(inname, "rb");
-    if (!wavf.fp)
-    {
+    if (!wavf.fp) {
         printf("Error : File open error\n");
         goto err_end;
     }
 
     // フォーマットの取得
-    if (wav_getfmt(&wavf) )
-    {
+    if (wav_getfmt(&wavf)) {
         printf("Error : Unsupported format file\n");
         goto err_end;
     }
@@ -670,30 +723,23 @@ int main(int argc, char *argv[])
     // 出力表示
     printf(
 				"Input: Freq:%d Bits:%d CH:%d\n",
-				(int)wavf.freq,
-        (int)wavf.bits,
-        (int)wavf.ch
+				(int)wavf.freq, (int)wavf.bits, (int)wavf.ch
     );
 
     // データチャンク検索
-    if (wav_find_data(&wavf))
-    {
+    if (wav_find_data(&wavf)) {
         printf("Error : data chank not found\n");
         goto err_end;
     }
 		
 		// 出力サンプルビットサイズ
-		if (flag_use5bit)
-			wavf.pcm.outbit = 5;
-		else
-			wavf.pcm.outbit = 4;
+		wavf.pcm.outbit = flag_use5bit ? 5 : 4;
 
 		// 出力ファイルを開く
 		wav_write_pcm(&wavf, inname, ofn);
 		
 		//　ファイルポインタチェック
-    if (!wavf.pcm.outfp)
-			goto err_outfile;
+    if (!wavf.pcm.outfp) goto err_outfile;
 
     // 変換
     wav_convert(&wavf);

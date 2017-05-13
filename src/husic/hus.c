@@ -207,8 +207,7 @@ mixvol(val)
 char val;
 {
  /* PCMチャンネルであれば違う処理をする */
- if ( pcm_check ( reg_ch ) )
- {
+ if ( pcm_check ( reg_ch ) ) {
 	poke( SND_MIX , 0xC0 | val );
 	return;
  }
@@ -227,10 +226,9 @@ int ch;
 {
 	char i;
 
-	poke( SND_MIX, 0x00 );
+	poke(SND_MIX, 0x00);
 
-	for( i = 0; i < 32; i++ )
-	{
+	for( i = 0; i < 32; i++ ) {
 		poke( SND_WAV , i );
 	}
 

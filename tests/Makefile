@@ -17,9 +17,9 @@ HESFILES = test01.hes test03.hes test04.hes test05.hes $(PCMHES) fmlfo.hes multi
 
 PCEFILES = multi01.pce
 
-PCMFILES = tone.pd4 tone.pd5
+PCMFILES = tone.pd4 tone.pd8
 
-WAVFILES = dec_pd4.wav dec_pd5.wav
+WAVFILES = dec_pd4.wav
 
 OUTPUT = output
 
@@ -68,9 +68,8 @@ dec_pd5.wav : tone.pd5
 tone.pd4 : tone_orig.wav
 	$(XPCM) $< -o $@
 
-tone.pd5 : tone_orig.wav
+tone.pd8 : tone_orig.wav
 		$(XPCM) $< --5bit -o $@
-
 
 %.pd4 : %.wav
 	$(XPCM) $<

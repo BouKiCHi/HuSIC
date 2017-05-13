@@ -4,7 +4,6 @@
 #define XPCM_CH  5
 #define XPCM2_CH 4
 
-
 #define XPCM_FLAG 0x01
 #define XPCM2_FLAG 0x02
 
@@ -25,7 +24,6 @@ char xpcm_flags;
 char xpcm_play_flags;
 
 /*
-
   XPCM 変数表 version 0.1
 
   xpcm_ptr = アドレス
@@ -35,7 +33,6 @@ char xpcm_play_flags;
 
   0x00  ... stop
   0x01  ... play
-
 */
 
 pcm_play_data ( ch , addr , len , bank )
@@ -67,36 +64,22 @@ char bank;
 pcm_on( ch )
 char ch;
 {
-	poke( SND_SEL , ch );
-	poke( SND_MIX , 0xDF ); /* on */
-	poke( SND_SEL , reg_ch ); /* restore ch */
-
-	if ( ! xpcm_play_flags )
-	{
+	if (!xpcm_play_flags) {
 		ena_irq_tmr();
 	}
 
-	if ( ch == XPCM_CH )
-		xpcm_play_flags |= XPCM_FLAG;
-
-	if ( ch == XPCM2_CH )
-		xpcm_play_flags |= XPCM2_FLAG;
-
+	if ( ch == XPCM_CH ) xpcm_play_flags |= XPCM_FLAG;
+	if ( ch == XPCM2_CH ) xpcm_play_flags |= XPCM2_FLAG;
 }
 
 
 pcm_off( ch )
 char ch;
 {
+	if ( ch == XPCM_CH ) xpcm_play_flags &= XPCM_MASK;
+  if ( ch == XPCM2_CH ) xpcm_play_flags &= XPCM2_MASK;
 
-	if ( ch == XPCM_CH )
-		xpcm_play_flags &= XPCM_MASK;
-
-	if ( ch == XPCM2_CH )
-		xpcm_play_flags &= XPCM2_MASK;
-
-	if ( ! xpcm_play_flags )
-	{
+	if ( ! xpcm_play_flags ) {
 		dis_irq_tmr();
 	}
 }
@@ -121,12 +104,8 @@ char ch;
 pcm_check ( ch )
 char ch;
 {
-	if ( ch == XPCM_CH )
-		return xpcm_flags & XPCM_FLAG;
-
-	if ( ch == XPCM2_CH )
-		return xpcm_flags & XPCM2_FLAG;
-
+	if ( ch == XPCM_CH ) return xpcm_flags & XPCM_FLAG;
+	if ( ch == XPCM2_CH ) return xpcm_flags & XPCM2_FLAG;
 	return 0;
 }
 
@@ -135,21 +114,15 @@ pcm_switch ( ch , mode )
 char ch;
 char mode;
 {
-	if ( mode )
-	{
-		if ( ch == XPCM_CH )
-			xpcm_flags |= XPCM_FLAG;
-
-		if ( ch == XPCM2_CH)
-			xpcm_flags |= XPCM2_FLAG;
-	}
-	else
-	{
-		if ( ch == XPCM_CH )
-			xpcm_flags &= XPCM_MASK;
-
-		if ( ch == XPCM2_CH )
-			xpcm_flags &= XPCM2_MASK;
+	if ( mode ) {
+		poke( SND_SEL , ch );
+		poke( SND_MIX , 0xDF ); /* on */
+		poke( SND_SEL , reg_ch ); /* restore ch */
+		if ( ch == XPCM_CH ) xpcm_flags |= XPCM_FLAG;
+		if ( ch == XPCM2_CH) xpcm_flags |= XPCM2_FLAG;
+	} else {
+		if ( ch == XPCM_CH ) xpcm_flags &= XPCM_MASK;
+		if ( ch == XPCM2_CH ) xpcm_flags &= XPCM2_MASK;
 	}
 }
 
@@ -285,9 +258,9 @@ char mode;
 		call	_pcm_off
 
 	.end_\2:
-
-
 	.endm
+
+	.if 0
 
 	;_pcm_proc_5bit < ch , index >
 	;
@@ -376,10 +349,71 @@ char mode;
 
 	;　終了
 	.skip_pcmoff_\2:
-
 	.endm
 
+	.endif
 
+	.if (USE_5BITPCM)
+
+	;_pcm_proc_8bit < ch , index >
+	;
+	; in : ch = 物理チャンネル
+	;    : index = メモリ相対位置
+
+	.macro _pcm_proc_8bit
+
+		; チャンネル選択
+		lda		#\1
+		_xpokei_b REG_SEL
+
+		; バンク切り替え
+		tma		#3
+		sta		_xpcm_bank_save
+		lda		_xpcm_bank + \2
+		tam		#3
+
+		; バッファに読み出し
+		_xpeek_b _xpcm_addr + (\2 * 2)
+		sta		_xpcm_buf + \2
+
+		; アドレスポインタ加算
+		__ldw   _xpcm_addr + (\2 * 2)
+		__addwi 1
+		__stw	_xpcm_addr + (\2 * 2)
+
+		; 残りサイズ減算
+		__ldw   _xpcm_len + (\2 * 2)
+		__subwi 1
+		__stw	_xpcm_len + (\2 * 2)
+
+	; 出力
+	.store_\2:
+		; バッファ読み出し
+		lda		_xpcm_buf + \2
+		; DACへ出力
+		_xpokei_b REG_DAC
+
+		; バンク切り替えを戻す
+		lda		_xpcm_bank_save
+		tam		#3
+
+		; 残りサイズの確認
+		__ldw   _xpcm_len + (\2 * 2)
+		stx		<__temp
+		ora		<__temp
+
+		; まだサイズがあるのでスキップする
+		bne		.skip_pcmoff_\2
+
+		; PCMをオフにする
+		__ldwi	\1
+		call	_pcm_off
+
+	;　終了
+	.skip_pcmoff_\2:
+
+	.endm
+	.endif
 
 	;
 	; pcm_intr
@@ -409,12 +443,13 @@ char mode;
 	; 5ビット
 
 	.ch1_proc:
-		_pcm_proc_5bit 5, 0
+		_pcm_proc_8bit 5, 0
 		jmp		.end_ch1
 
 	.ch2_proc:
-		_pcm_proc_5bit 4, 1
+		_pcm_proc_8bit 4, 1
 		jmp		.end_ch2
+
 	.else
 
 	; 4ビット
@@ -428,68 +463,9 @@ char mode;
 		jmp		.end_ch2
 
 	.endif
-
 	.endp
 
 #endasm
-
-
-/*
-
-pcm_intr_c()
-{
-	char out;
-
-	if (xpcm_play_flags & XPCM_FLAG)
-	{
-		chg_pcmbank(xpcm_bank[0]);
-		if (xpcm_shift[0] & 1)
-		{
-			out = (peek(xpcm_addr[0]) >> 3) & 0x1e;
-		}
-		else
-		{
-			out = (peek(xpcm_addr[0]++) << 1) & 0x1e;
-
-			xpcm_len[0]--;
-
-			if (!xpcm_len[0])
-				pcm_off(XPCM_CH);
-		}
-
-		xpcm_shift[0] ^= 0x01;
-
-		poke(SND_SEL,  XPCM_CH);
-		poke(SND_WAV, out);
-	}
-
-	if (xpcm_play_flags & XPCM2_FLAG)
-	{
-		chg_pcmbank(xpcm_bank[1]);
-
-		if (xpcm_shift[1] & 1)
-		{
-			out = (peek(xpcm_addr[1]) >> 3) & 0x1e;
-		}
-		else
-		{
-			out = (peek(xpcm_addr[1]++) << 1) & 0x1e;
-
-			xpcm_len[1]--;
-
-			if (!xpcm_len[1])
-				pcm_off(XPCM2_CH);
-		}
-
-		xpcm_shift[1] ^= 0x01;
-
-		poke(SND_SEL, XPCM2_CH);
-		poke(SND_WAV, out);
-	}
-
-	poke(SND_SEL, reg_ch);
-}
-*/
 
 #asm
 	; 割り込み有効
