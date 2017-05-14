@@ -12,10 +12,10 @@ XPCM = ..\bin\xpcm
 PD4WAV = python pd4wav.py
 
 PCMHES = test02.hes test02_5b.hes
-
 HESFILES = test01.hes test03.hes test04.hes test05.hes $(PCMHES) fmlfo.hes multi01.hes
-
 PCEFILES = multi01.pce
+SONGFILES = $(HESFILES) $(PCEFILES)
+MULTI_MMLFILES = multi01.mml multi02.mml multi03.mml 
 
 PCMFILES = tone.pd4 tone.pd8
 
@@ -23,11 +23,12 @@ WAVFILES = dec_pd4.wav
 
 OUTPUT = output
 
-all: output_dir $(PCMFILES) $(HESFILES) $(PCEFILES)
+all: output_dir $(PCMFILES) $(addprefix $(OUTPUT)/,$(SONGFILES))
+
+# all: output_dir $(OUTPUT)/test01.hes
 
 output_dir:
-	rm -rf $(OUTPUT)
-	mkdir $(OUTPUT)
+	mkdir -p $(OUTPUT)
 
 pcm: $(PCMFILES) $(PCMHES)
 
@@ -36,27 +37,25 @@ wav: $(WAVFILES)
 hes: $(HESFILES)
 
 clean:
-	rm -f $(HESFILES)
-	rm -f $(PCMFILES)
+	rm -rf $(OUTPUT)
 	rm -f $(WAVFILES)
 
+$(OUTPUT)/multi01.hes : $(MULTI_MMLFILES)
+	$(MAKEHES_MULTI) $^
+	@mv $(notdir $@) $@ 
 
-multi01.hes : 
-	$(MAKEHES_MULTI) multi01.mml multi02.mml multi03.mml 
-	mv $@ output
-
-multi01.pce : 
-	$(MAKEPCE_MULTI) multi01.mml multi02.mml multi03.mml 
-	mv $@ output
+$(OUTPUT)/multi01.pce : $(MULTI_MMLFILES) 
+	$(MAKEPCE_MULTI) $^
+	@mv $(notdir $@) $@ 
 
 
-%.hes : %.mml
-	$(MAKEHES) $< 
-	mv $@ output
+$(OUTPUT)/%.hes : ../hescode/main.s
+	$(MAKEHES) $(@F:.hes=.mml)
+	@mv $(notdir $@) $@ 
 
-%.pce : %.mml
-	$(MAKEPCE) $< 
-	mv $@ output
+$(OUTPUT)/%.pce : ../hescode/main.s
+	$(MAKEPCE) $(@F:.pce=.mml)
+	@mv $(notdir $@) $@ 
 
 dec_pd4.wav : tone.pd4
 	$(PD4WAV) $< -o $@
@@ -69,7 +68,9 @@ tone.pd4 : tone_orig.wav
 	$(XPCM) $< -o $@
 
 tone.pd8 : tone_orig.wav
-		$(XPCM) $< --5bit -o $@
+	$(XPCM) $< --5bit -o $@
 
 %.pd4 : %.wav
 	$(XPCM) $<
+
+.PHONY: all output_dir clean
