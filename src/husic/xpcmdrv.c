@@ -64,9 +64,7 @@ char bank;
 pcm_on( ch )
 char ch;
 {
-	if (!xpcm_play_flags) {
-		ena_irq_tmr();
-	}
+	if (!xpcm_play_flags) ena_irq_tmr(); 
 
 	if ( ch == XPCM_CH ) xpcm_play_flags |= XPCM_FLAG;
 	if ( ch == XPCM2_CH ) xpcm_play_flags |= XPCM2_FLAG;
@@ -79,9 +77,7 @@ char ch;
 	if ( ch == XPCM_CH ) xpcm_play_flags &= XPCM_MASK;
   if ( ch == XPCM2_CH ) xpcm_play_flags &= XPCM2_MASK;
 
-	if ( ! xpcm_play_flags ) {
-		dis_irq_tmr();
-	}
+	if (!xpcm_play_flags ) dis_irq_tmr();
 }
 
 pcm_stop ( ch )
