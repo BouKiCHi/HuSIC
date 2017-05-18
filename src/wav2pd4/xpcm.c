@@ -27,7 +27,7 @@
 
 // PCMバッファ定数
 #define PCM_BUFBITS 8
-#define PCM_BUFMASK 255
+#define PCM_BUFMASK 0xFF
 
 typedef unsigned char  BYTE;
 typedef unsigned short WORD;
@@ -46,7 +46,7 @@ struct pcm_t
   int cutsize; // 中断サイズ
   int outsize; // 出力サイズ
 
-
+  int zeroend; // 終端を0にする(シフト時)
   int shift; // シフト
 
   int leftbits; // 現在のバッファの残りビット数
@@ -187,26 +187,20 @@ int wav_getfmt(struct wavfmt_t *lf)
 }
 
 // データチャンクを検出
-int wav_find_data(struct wavfmt_t *lf)
-{
+int wav_find_data(struct wavfmt_t *lf) {
     BYTE buf[16];
 
-    do
-    {
+    do {
         // dataチャンクを検出
         fread(buf, 4, 1, lf->fp);
-        if (memcmp(buf, "data", 4) == 0)
-        {
+        if (memcmp(buf, "data", 4) == 0) {
             lf->pcmsize = read_dword(lf->fp);
             return 0;
-        }
-        else
-        {
+        } else {
             long len = read_dword(lf->fp);
 
             // チャンクサイズが正しくない
-            if (len == 0)
-                break;
+            if (len == 0) break;
             fseek(lf->fp, len, SEEK_CUR);
         }
     }while(!feof(lf->fp));
@@ -214,26 +208,17 @@ int wav_find_data(struct wavfmt_t *lf)
     return -1;
 }
 
-#if 0
-// PCM出力
-void wav_buffer_out(struct wavfmt_t *lf, long mix_buf)
-{
-	// ビット数
-	int use_bits = (PCM_BUFBITS - lf->pcm.leftbits);
-	
-	// バッファにコピーする
-	lf->pcm.buffer |= (mix_buf >> use_bits);
-	
-	// サンプリングビットを引く
+// PCMシフト出力(mix_buf = 8bit PCM)
+void wav_buffer_shift_out(struct wavfmt_t *lf, long mix_buf) {
+	// 開始ビット
+  int start_bit = PCM_BUFBITS - lf->pcm.leftbits;
+	lf->pcm.buffer |= (mix_buf >> start_bit);	
 	lf->pcm.leftbits -= lf->pcm.outbit;
 	
-	// 残りのビットを空にする
-	if (lf->pcm.leftbits > 0)
-	{
+	// ビットマスクで0にする
+	if (lf->pcm.leftbits > 0) {
 		lf->pcm.buffer &= (PCM_BUFMASK << lf->pcm.leftbits);
-	}
-	else
-	{
+	} else {
 		// バッファが埋まった
 		fputc(lf->pcm.buffer, lf->pcm.outfp);
 		
@@ -245,57 +230,19 @@ void wav_buffer_out(struct wavfmt_t *lf, long mix_buf)
 		lf->pcm.leftbits += PCM_BUFBITS;
 		
 		// 入力サンプルのあまりを出力する
-		lf->pcm.buffer |= (mix_buf << (PCM_BUFBITS - use_bits));
+		lf->pcm.buffer |= (mix_buf << (PCM_BUFBITS - start_bit));
 		lf->pcm.buffer &= (PCM_BUFMASK << (lf->pcm.leftbits));
-		
 	}
 }
-#endif
 
-
-
-// PCMシフト出力
-void wav_buffer_shift_out(struct wavfmt_t *lf, long mix_buf)
-{
-	// ビット数
-	int use_bits = (PCM_BUFBITS - lf->pcm.leftbits);
-	
-	// バッファにコピーする
-	lf->pcm.buffer |= (mix_buf >> use_bits);
-	
-	// サンプリングビットを引く
-	lf->pcm.leftbits -= lf->pcm.outbit;
-	
-	// 残りのビットを空にする
-	if (lf->pcm.leftbits > 0)
-	{
-		lf->pcm.buffer &= (PCM_BUFMASK << lf->pcm.leftbits);
-	}
-	else
-	{
-		// バッファが埋まった
-		fputc(lf->pcm.buffer, lf->pcm.outfp);
-		
-		// 出力サイズ増加
-		lf->pcm.outsize++;
-		
-		// バッファクリア
-		lf->pcm.buffer = 0;
-		lf->pcm.leftbits += PCM_BUFBITS;
-		
-		// 入力サンプルのあまりを出力する
-		lf->pcm.buffer |= (mix_buf << (PCM_BUFBITS - use_bits));
-		lf->pcm.buffer &= (PCM_BUFMASK << (lf->pcm.leftbits));
-		
-	}
-}
 // PCM出力
-void wav_buffer_out(struct wavfmt_t *lf, long mix_buf)
-{
+void wav_buffer_out(struct wavfmt_t *lf, long mix_buf) {
   if (lf->pcm.outbit != 5) { 
     wav_buffer_shift_out(lf, mix_buf);
     return;
   }
+
+  // 8bit出力
 
 	// ビット数
 	int use_bits = (PCM_BUFBITS - lf->pcm.outbit);
@@ -309,36 +256,30 @@ void wav_buffer_out(struct wavfmt_t *lf, long mix_buf)
   
   // バッファクリア
   lf->pcm.buffer = 0;
-  lf->pcm.leftbits += PCM_BUFBITS;  
+  lf->pcm.leftbits = PCM_BUFBITS;  
 }
 
 
 // PCM出力準備
-void wav_push_sample(struct wavfmt_t *lf)
-{
+void wav_push_sample(struct wavfmt_t *lf) {
   // カウントを加算する
   lf->pcm.count += lf->pcm.rate;
 
   // 出力可能ではない
-  if (lf->pcm.count < 1)
-    return;
+  if (lf->pcm.count < 1) return;
 
 	long mix_buf = 0;
 
   // サンプルビット数を8ビットに下げる
-  if (lf->bits == 16)
-  {
+  if (lf->bits == 16) {
 		mix_buf = lf->pcm.mix_buffer;
     mix_buf /= 256;
     mix_buf += (UCHAR_MAX / 2);
-  }
-	else
-	{
+  } else {
 		mix_buf = lf->pcm.mix_buffer;
 	}
 
-	if (lf->debug)
-		printf("%ld\n", mix_buf >> (8 - lf->pcm.outbit));
+	if (lf->debug) printf("%ld\n", mix_buf >> (8 - lf->pcm.outbit));
 
   // カウントを減算する
   lf->pcm.count -= 1;
@@ -349,28 +290,30 @@ void wav_push_sample(struct wavfmt_t *lf)
 
 
 // PCM終端出力
-void wav_push_term(struct wavfmt_t *lf)
-{
-  // バッファを出力
-  fputc(lf->pcm.buffer, lf->pcm.outfp);
-  // 終端
-  fputc(0x00, lf->pcm.outfp);
+void wav_push_term(struct wavfmt_t *lf) {
+  // 未出力があればバッファを出力
+  if (PCM_BUFBITS > lf->pcm.leftbits) {
+    if (lf->pcm.zeroend) {
+      fputc(lf->pcm.buffer, lf->pcm.outfp);
+      return;
+    }
+    if (lf->pcm.outbit == 4) {
+      fputc((lf->pcm.buffer & 0xf0) | ((lf->pcm.buffer >> 4) & 0x0f), lf->pcm.outfp);
+      return;
+    }
+  }
 }
 
 // WAVサンプル読み出し
-void wav_read_sample(struct wavfmt_t *lf)
-{
+void wav_read_sample(struct wavfmt_t *lf) {
 	BYTE buf[8];
 	
 	// ファイルポインタがNULLなら何もしない
-	if (!lf->fp)
-		return;
+	if (!lf->fp) return;
 
 	// ステレオ処理
-	if (lf->ch == 2)
-	{
-		if (lf->bits == 16)
-		{
+	if (lf->ch == 2) {
+		if (lf->bits == 16) {
 			// 16bit
 			fread(buf, 4, 1, lf->fp);
 			lf->len -= 4;
@@ -389,9 +332,7 @@ void wav_read_sample(struct wavfmt_t *lf)
 			else
 				// ２つの波形の平均
 				lf->pcm.mix_buffer = (lf->pcm.mix_buffer + buffer) / 2;
-		}
-		else if (lf->bits == 8)
-		{
+		} else if (lf->bits == 8) {
 			// 8bit
 			fread(buf, 2, 1, lf->fp);
 			lf->len -= 2;
@@ -411,49 +352,37 @@ void wav_read_sample(struct wavfmt_t *lf)
 				// ２つの波形の平均
 				lf->pcm.mix_buffer = (lf->pcm.mix_buffer + buffer) / 2;
 		}
-	}
-	else // モノラル
-	{
+	} else  {
+    // モノラル
 		// 16bit
-		if (lf->bits == 16)
-		{
+		if (lf->bits == 16) {
 			fread(buf, 2, 1, lf->fp);
 			lf->len -= 2;
 			
 			// データ読み出し
 			long buffer = (short)read_word_mem(buf);
 			
-			// PCM補間をしない
-			if (lf->no_inter)
-				lf->pcm.mix_buffer = buffer;
-			else
-				// ２つの波形の平均
-				lf->pcm.mix_buffer = (lf->pcm.mix_buffer + buffer) / 2;
+			// PCM補間
+			if (lf->no_inter) lf->pcm.mix_buffer = buffer; 
+			else lf->pcm.mix_buffer = (lf->pcm.mix_buffer + buffer) / 2;
 			
-		}
-		else if (lf->bits == 8) // 8bit
-		{
+		} else if (lf->bits == 8) {
+      // 8bit
 			fread(buf, 1, 1, lf->fp);
 			lf->len -= 1;
 			
 			// データ読み出し
 			long buffer = *(BYTE *)buf;
 			
-			// PCM補間をしない
-			if (lf->no_inter)
-				lf->pcm.mix_buffer = buffer;
-			else
-				// ２つの波形の平均
-				lf->pcm.mix_buffer = (lf->pcm.mix_buffer + buffer) / 2;
+			if (lf->no_inter) lf->pcm.mix_buffer = buffer;
+			else lf->pcm.mix_buffer = (lf->pcm.mix_buffer + buffer) / 2;
 		}
 	}
 
 }
 
-
 // WAVデータ変換
-void wav_convert(struct wavfmt_t *lf)
-{
+void wav_convert(struct wavfmt_t *lf) {
 
     // 表示カウンタ
     long info_count = 0;
@@ -462,20 +391,10 @@ void wav_convert(struct wavfmt_t *lf)
     lf->pcm.count = 0;
     lf->pcm.rate = lf->pcm.outfreq / (float)lf->freq;
 
-    // 出力サイズ
-    lf->pcm.outsize = 0;
-    lf->pcm.shift = 0;
-
-    // バッファクリア
-    lf->pcm.buffer = 0;
-    lf->pcm.mix_buffer = 0;
-    lf->pcm.leftbits = PCM_BUFBITS;
-
 		// 長さ設定
     lf->len = lf->pcmsize;
 
-    while(lf->len > 0)
-    {
+    while(lf->len > 0) {
 			// サンプル読み出し
 			wav_read_sample(lf);
 
@@ -483,73 +402,55 @@ void wav_convert(struct wavfmt_t *lf)
 			wav_push_sample(lf);
 
 			// ファイルサイズが大きすぎるので中断する
-			if (lf->pcm.outsize >= lf->pcm.cutsize)
-				break;
+			if (lf->pcm.outsize >= lf->pcm.cutsize) break;
 
 			// 出力 パーセント表示
-			if (info_count)
-			{
-					info_count--;
-			}
-			else
-			{
-				if (lf->pcmsize != lf->len)
-				{
+			if (info_count) { info_count--; } else {
+				if (lf->pcmsize != lf->len) {
 						printf("out : %3ld%%\r",
 									 ( ( lf->pcmsize - lf->len ) * 100 ) / lf->pcmsize );
 				}
 				info_count = 1000;
 			}
-
     } // ループ終了
 
     printf("out : 100%%\n");
 
     // 終端出力
     wav_push_term(lf);
-
 }
 
 
 // ファイル名作成
-void make_filename(char *dest, const char *name, const char *ext)
-{
+void make_filename(char *dest, const char *name, const char *ext) {
 	strcpy(dest, name);
-	
 	char *p = strrchr(dest, _PATH_DELIM);
-	
-	if (!p)
-		p = dest;
-	
+
+	if (!p) p = dest;
 	p = strchr(p, '.');
-	
-	if (p)
-		strcpy(p, ext);
-	else
-		strcat(p, ext);
-	
+	if (p) strcpy(p, ext); else strcat(dest, ext);
 }
 
 // ファイルを閉じる
-void wav_close(struct wavfmt_t *lf)
-{
+void wav_close(struct wavfmt_t *lf) {
 	// 出力ファイル
-	if (lf->pcm.outfp)
-		fclose(lf->pcm.outfp);
+	if (lf->pcm.outfp) fclose(lf->pcm.outfp);
 
 	lf->pcm.outfp = NULL;
 	
 	// 入力ファイル
-	if (lf->fp)
-		fclose(lf->fp);
+	if (lf->fp) fclose(lf->fp);
 	
 	lf->fp = NULL;
 }
 
+// 拡張子
+const char *ext_from_format(struct wavfmt_t *lf) {
+  return (lf->pcm.outbit == 5 ? EXT_PD8 : EXT_PD4);
+}
 
-// ファイルを開く
-void wav_write_pcm(struct wavfmt_t *lf, const char *inname, const char *ofn)
-{
+// 出力ファイルを開く
+void wav_write_pcm(struct wavfmt_t *lf, const char *inname, const char *ofn) {
 	
 	// 出力ファイル名
 	char outname_body[_PATH_MAX];
@@ -557,20 +458,13 @@ void wav_write_pcm(struct wavfmt_t *lf, const char *inname, const char *ofn)
 	const char *outname = NULL;
 	
 	// 出力ファイルを開く
-	if (!ofn)
-	{
+	if (!ofn) {
 		outname = outname_body;
-		// 拡張子
-		char *ext = (lf->pcm.outbit == 5 ? EXT_PD8 : EXT_PD4);
-		
-		// ファイル名
-		make_filename(outname_body, inname, ext);
-	}
-	else
-	{
+		make_filename(outname_body, inname, ext_from_format(lf));
+	} else {
 		outname = ofn;
 	}
-	
+
 	// 表示
 	printf("PCM:%s Freq:%d %dBits\n",
 				 outname,
@@ -579,19 +473,27 @@ void wav_write_pcm(struct wavfmt_t *lf, const char *inname, const char *ofn)
 	
 	// ファイル開く
 	lf->pcm.outfp = fopen(outname, "wb");
-	
+
+  // バッファクリア
+  lf->pcm.buffer = 0;
+  lf->pcm.mix_buffer = 0;
+  lf->pcm.leftbits = PCM_BUFBITS;
+
+  // 出力サイズ
+  lf->pcm.outsize = 0;
+  lf->pcm.shift = 0;
 }
 
 // 仕様説明
-void usage(void)
-{
+void usage(void) {
   printf(
-    "Usage WAV2PD4 [options...] files... \n"
+    "Usage XPCM [options...] files... \n"
     "\n"
     " options...\n"
     " --5bit   use 5bit output mode\n"
 		" --limits <n> limits output size to n\n"
 		" --maketest  make testdata file\n"
+		" --zeroend  end with zero if shift buffer is not empty \n"
     " -n, --ni   no use interpolation\n"
     " -f <n>, --freq <n>  set output frequency to freq\n"
     " -o <filename>  output to filename\n"
@@ -601,18 +503,16 @@ void usage(void)
 }
 
 // メイン
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
   char   *ofn = NULL;
   struct wavfmt_t wavf;
   int   i;
   int flag_use5bit = 0;
 
-  printf("WAV to PD4 comverter ver 0.5 by BouKiCHi\n");
+  printf("XPCM - WAV to PD4/PD8 comverter - ver 0.6 by BouKiCHi\n");
   printf("Built at %s\n", __DATE__);
 
-  if (argc == 1)
-  {
+  if (argc == 1) {
     usage();
     return -1;
   }
@@ -626,6 +526,7 @@ int main(int argc, char *argv[])
 
   wavf.freq = 11025;
   wavf.pcm.outbit = 4;
+  wavf.pcm.zeroend = 0;
 	
 	int flag_maketest = 0;
 
@@ -638,6 +539,7 @@ int main(int argc, char *argv[])
       {"debug", 0, NULL, 1},
       {"limits", 1, NULL, 2},
 			{"maketest", 0, NULL, 3},
+			{"zeroend", 0, NULL, 4},
       {"ni", 0, NULL, 'n'},
   		{"freq", 1, NULL, 'f'},
   		{"help", 0, NULL, 'h'},
@@ -665,6 +567,9 @@ int main(int argc, char *argv[])
 			case 3: // --testdata
 				flag_maketest = 1;
 				break;
+      case 4: // --zeroend
+        wavf.pcm.zeroend = 1;
+        break;
       case 'n': // --ni
         wavf.no_inter = 1;
       break;
@@ -685,18 +590,16 @@ int main(int argc, char *argv[])
 	
 	// テストデータ
 	if (flag_maketest) {
-		wavf.pcm.outbit = 5;
-
+    char test_filename[_PATH_MAX]; 
+    make_filename(test_filename, "testdata", ext_from_format(&wavf));
 		// 出力ファイルを開く
-		wav_write_pcm(&wavf, "testdata.pd5", NULL);
-		
-		//　ファイルポインタチェック
+		wav_write_pcm(&wavf, test_filename, NULL);		
 		if (!wavf.pcm.outfp) goto err_outfile;
 		
 		// バッファ出力
-		for(i = 0; i < 5120; i++) wav_buffer_out(&wavf, (i & 0x1f) << 3); 
-		
-		// 閉じる
+		for(i = 0; i < 15; i++) wav_buffer_out(&wavf, (i & 0x1f) << 3);
+
+    wav_push_term(&wavf);
 		wav_close(&wavf);
 		return 0;
 	}

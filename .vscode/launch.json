@@ -1,0 +1,40 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "XPCM debug Launch",
+      "type": "cppdbg",
+      "request": "launch",
+      "miDebuggerPath": "c:\\msys64\\mingw32\\bin\\gdb.exe",
+      "program": "${workspaceRoot}\\bin\\xpcm.exe",
+      "args": ["--maketest"],
+      "stopAtEntry": false,
+      "cwd": "${workspaceRoot}",
+      "environment": [],
+      "externalConsole": true,
+      "linux": {
+        "MIMode": "gdb",
+        "setupCommands": [
+          {
+            "description": "Enable pretty-printing for gdb",
+            "text": "-enable-pretty-printing",
+            "ignoreFailures": true
+          }
+        ]
+      },
+      "osx": {
+        "MIMode": "lldb"
+      },
+      "windows": {
+        "MIMode": "gdb",
+        "setupCommands": [
+          {
+            "description": "Enable pretty-printing for gdb",
+            "text": "-enable-pretty-printing",
+            "ignoreFailures": true
+          }
+        ]
+      }
+    }
+  ]
+}

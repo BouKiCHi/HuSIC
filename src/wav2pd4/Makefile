@@ -7,7 +7,7 @@ OBJS = xpcm.o
 INSTDIR = ../../bin
 
 
-CFLAGS = -Wall
+CFLAGS = -Wall -g
 LDFLAGS = 
 
 CC = gcc
