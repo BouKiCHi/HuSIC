@@ -77,7 +77,7 @@ char ch;
 	if ( ch == XPCM_CH ) xpcm_play_flags &= XPCM_MASK;
   if ( ch == XPCM2_CH ) xpcm_play_flags &= XPCM2_MASK;
 
-	if (!xpcm_play_flags ) dis_irq_tmr();
+	if (!xpcm_play_flags) dis_irq_tmr();
 }
 
 pcm_stop ( ch )
@@ -119,6 +119,7 @@ char mode;
 	} else {
 		if ( ch == XPCM_CH ) xpcm_flags &= XPCM_MASK;
 		if ( ch == XPCM2_CH ) xpcm_flags &= XPCM2_MASK;
+		pcm_off(ch);
 	}
 }
 
