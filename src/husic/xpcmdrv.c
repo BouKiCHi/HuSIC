@@ -117,9 +117,10 @@ char mode;
 		if ( ch == XPCM_CH ) xpcm_flags |= XPCM_FLAG;
 		if ( ch == XPCM2_CH) xpcm_flags |= XPCM2_FLAG;
 	} else {
+		if (pcm_check(reg_ch)) pcm_off(reg_ch);
+
 		if ( ch == XPCM_CH ) xpcm_flags &= XPCM_MASK;
 		if ( ch == XPCM2_CH ) xpcm_flags &= XPCM2_MASK;
-		pcm_off(ch);
 	}
 }
 
