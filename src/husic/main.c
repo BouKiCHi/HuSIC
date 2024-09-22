@@ -33,6 +33,8 @@
     dw  multienv_table     ; 13
     dw  multienv_lp_table  ; 14
     dw  song_addr_table  ; 15
+    dw  noiseenv_table  ; 16
+    dw  noiseenv_lp_table  ; 17
 
 _pcewav:
     dw  pce_data_table
@@ -227,8 +229,7 @@ main()
         put_hex(ch_topbank, 2, 20, 3);
         put_hex(ch_nowbank, 2, 23, 3);
 
-        for(i = 0; i < 6; i++)
-        {
+        for(i = 0; i < 6; i++) {
             x = 2;
 
             /* トラック番号 */

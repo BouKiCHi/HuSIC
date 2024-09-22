@@ -93,6 +93,7 @@ int effect_wave_tbl[_EFFECT_WAVE_MAX][33];	// Effect Wave (4088) Data
 
 int wtb_tone_tbl[_WTB_TONE_MAX][2+64];		// HuSIC WaveTable Tone
 int multienv_tbl[_TONE_MAX][1024];		// HuSIC MultiEnvelope
+int noise_env_tbl[_ENV_MAX][1024];		// HuSIC ノイズエンベロープ
 
 DPCMTBL	dpcm_tbl[_DPCM_MAX];				// DPCM
 DPCMTBL	xpcm_tbl[_DPCM_MAX];				// XPCM(for HuSIC)
@@ -178,6 +179,7 @@ enum {
 	FMLFO_PARAM_IS_WRONG,
 	PORT_IS_WRONG,
 	MULTI_ENV_IS_WRONG,
+	NOISE_ENV_IS_WRONG,
 };
 
 // エラー文字列
@@ -244,6 +246,7 @@ const	char	*ErrorlMessage[] = {
 	"FMLFOパラメータに誤りがあります",						"FMLFO parameter is wrong",
   "ポルタメントに誤りがあります",  "Portamento is wrong",
 	"マルチエンベロープ設定に誤りがあります",						"Multi envelope definition is wrong",
+	"ノイズエンベロープ定義に誤りがあります",						"Noise envelope definition is wrong",
 };
 
 enum {
@@ -587,6 +590,7 @@ void getLineStatus(LINE *lptr, int inc_nest )
 //		{ "@OP",             _SET_VRC7_TONE  },
 //		{ "@N",              _SET_N106_TONE  },
 		{ "@V",              _SET_ENVELOPE   },
+		{ "@N",              _SET_NOISE_ENV   },
 		{ "@",               _SET_TONE       },
 		{ "",                -1              },
 	};
@@ -729,11 +733,15 @@ void getLineStatus(LINE *lptr, int inc_nest )
 			/* HuSIC WTB */
 			  case _SET_WTB_TONE:
 				setEffectSub(lptr, line, &status_end_flag, 0, _WTB_TONE_MAX, WTB_TONE_DEFINITION_IS_WRONG);
-				break;
-				/* マルチエンベロープ */
-				case _SET_MULTIENV:
+			break;
+			/* HuSIC ノイズエンベロープ */
+			  case _SET_NOISE_ENV:
+				setEffectSub(lptr, line, &status_end_flag, 0, _ENV_MAX, NOISE_ENV_IS_WRONG);
+			break;
+			/* マルチエンベロープ */
+			case _SET_MULTIENV:
 				setEffectSub(lptr, line, &status_end_flag, 0, _TONE_MAX, MULTI_ENV_IS_WRONG);
-				break;
+			break;
 
 			/* namco106音源音色 */
 			  case _SET_N106_TONE:
@@ -2226,6 +2234,90 @@ void getWTBTone( LINE *lptr )
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
 			getWTBTone( lptr[line].inc_ptr );
+		}
+	}
+}
+
+/*--------------------------------------------------------------
+	ノイズエンベロープの取得
+ Input:
+
+ Output:
+	無し
+--------------------------------------------------------------*/
+void getNoiseEnv(LINE *lptr )
+{
+	int		line, i, no, end_flag, offset, num, cnt;
+	char	*ptr;
+
+	cnt = 0;
+
+	for( line = 1; line <= lptr->line; line++ ) {
+		/* 音色データ発見？ */
+		if( lptr[line].status == _SET_NOISE_ENV ) {
+			no = lptr[line].param;				/* 音色番号取得 */
+			ptr = lptr[line].str;
+			ptr++;								/* '{'の分を飛ばす */
+			noise_env_tbl[no][0] = 0;
+			offset = 0;
+			i = 1;
+			end_flag = 0;
+			while( end_flag == 0 ) {
+				ptr = skipSpace( ptr );
+				switch( *ptr ) {
+				  case '}':
+					noise_env_tbl[no][i] = EFTBL_END;
+					noise_env_tbl[no][0]++;
+					i++;
+					end_flag = 1;
+					line += offset;
+					break;
+				  case '\0':
+					offset++;
+					if( line+offset <= lptr->line ) {
+						if( (lptr[line+offset].status&_SAME_LINE) == _SAME_LINE ) {
+							ptr = lptr[line+offset].str;
+						}
+					} else {
+						dispError( NOISE_ENV_IS_WRONG, lptr[line].filename, line+offset );
+						noise_env_tbl[no][0] = 0;
+						line += offset;
+						end_flag = 1;
+					}
+					break;
+				  case '|':
+					noise_env_tbl[no][i] = EFTBL_LOOP;
+					noise_env_tbl[no][0]++;
+					i++;
+					ptr++;
+					break;
+				  default:
+					num = Asc2Int( ptr, &cnt );
+					if( cnt != 0 && (-127 <= num && num <= 127) ) {
+						noise_env_tbl[no][i] = num;
+						noise_env_tbl[no][0]++;
+						ptr += cnt;
+						i++;
+					} else {
+						dispError( NOISE_ENV_IS_WRONG, lptr[line+offset].filename, line+offset );
+						noise_env_tbl[no][0] = 0;
+						line += offset;
+						end_flag = 1;
+					}
+					break;
+				}
+				ptr = skipSpace( ptr );
+				if( *ptr == ',' ) {
+					ptr++;
+				}
+			}
+
+		/* 音色定義だけど_SAME_LINEの時はエラー */
+		} else if( lptr[line].status == (_SET_NOISE_ENV|_SAME_LINE) ) {
+			dispError( NOISE_ENV_IS_WRONG, lptr[line].filename, line );
+		/* インクルードファイル処理 */
+		} else if( lptr[line].status == _INCLUDE ) {
+			getNoiseEnv( lptr[line].inc_ptr );
 		}
 	}
 }
@@ -4073,6 +4165,8 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 		{ "@v", _ENVELOPE,		(ALLTRACK) },
 
 		// modified for HuSIC
+		{ "@@n", _NOISE_ENV,		(HUNOISE_TRK) },
+
 		{ "@pe", _PAN_ENV,		(ALLTRACK) },
 		{ "@@r", _REL_ORG_TONE,		(ALLTRACK) },
 		{ "@@", _ORG_TONE,		(ALLTRACK) },
@@ -4370,6 +4464,21 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 							}
 						} else {
 							dispError( RELATIVE_VOLUME_WAS_USED_WITHOUT_SPECIFYING_VOLUME, lptr[line].filename, line );
+							cmd->cmd = 0;
+							cmd->line = 0;
+						}
+					} else {
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+					}
+					break;
+				  case _NOISE_ENV:	/* HuSIC ノイズエンベロープ指定 */
+					cmd->filename = lptr[line].filename;
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					if( (mml[i].enable&(1<<trk)) != 0 ) {
+						if( cmd->param[0] == 255) {
+						} else if( 0 <= cmd->param[0] && cmd->param[0] <= 127) {
+						} else {
+							dispError( ABNORMAL_ENVELOPE_NUMBER, lptr[line].filename, line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						}
@@ -5981,16 +6090,21 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 				break;
 
 			// HuSIC
-				case _PAN_ENV:
-					putAsm( fp, MCK_PAN_ENV );
-					putAsm( fp, cmd->param[0]&0xff);
-					cmd++;
-					break;
-				case _RESET_IGNORE:
-					putAsm( fp, MCK_RESET_IGNORE );
-					putAsm( fp, cmd->param[0]&0xff);
-					cmd++;
-					break;
+			  case _NOISE_ENV:
+				putAsm( fp, MCK_HUSIC_NOISE_ENV );
+				putAsm( fp, cmd->param[0]&0xff);
+				cmd++;
+				break;
+			  case _PAN_ENV:
+				putAsm( fp, MCK_NOISE_SW );
+				putAsm( fp, cmd->param[0]&0xff);
+				cmd++;
+				break;
+			  case _RESET_IGNORE:
+				putAsm( fp, MCK_RESET_IGNORE );
+				putAsm( fp, cmd->param[0]&0xff);
+				cmd++;
+				break;
 
 			  case _FMLFO_FRQ:
 				  putAsm( fp, MCK_FMLFO_FRQ );
@@ -6402,6 +6516,7 @@ int data_make( void )
 
 	int		wtb_tone_max, xpcm_max; // HuSIC
 	int		multienv_max; // HuSIC
+	int		noise_env_max; // HuSIC
 
 	LINE	*line_ptr[MML_MAX];
 	CMD		*cmd_buf;
@@ -6437,6 +6552,7 @@ int data_make( void )
 		getXPCM(     line_ptr[mml_idx] );
 		getFMTone(   line_ptr[mml_idx] );
 		getWTBTone(   line_ptr[mml_idx] );
+		getNoiseEnv(line_ptr[mml_idx] );
 		getVRC7Tone( line_ptr[mml_idx] );
 		getN106Tone( line_ptr[mml_idx] );
 		getHardEffect(line_ptr[mml_idx]);
@@ -6458,6 +6574,7 @@ int data_make( void )
 
 	xpcm_max      = getMaxDPCM( xpcm_tbl );
 	wtb_tone_max = getMaxTone( wtb_tone_tbl, _WTB_TONE_MAX );
+	noise_env_max = checkLoop( noise_env_tbl, _ENV_MAX );
 
 
 	xpcm_size = checkXPCMSize( xpcm_tbl );
@@ -6500,6 +6617,10 @@ int data_make( void )
 
 		/* マルチエンベロープ書き込み */
 		writeToneEx( fp, multienv_tbl, "multienv", multienv_max, 1);
+
+		/* ノイズエンベロープ書き込み */
+		writeTone( fp, noise_env_tbl, "noiseenv", noise_env_max);
+
 
 		/* 音色書き込み */
 		writeTone( fp, tone_tbl, "dutyenve", tone_max );

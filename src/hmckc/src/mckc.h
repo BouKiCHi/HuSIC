@@ -78,6 +78,7 @@ typedef struct st_line {
 #define	_SET_XPCM_DATA  0x2C  // HuSIC
 #define _SET_WTB_TONE   0x2D  // HuSIC
 #define	_SET_MULTIENV		0x2E // HuSIC
+#define	_SET_NOISE_ENV		0x2F // HuSIC
 
 
 #define	_TRACK			0x40
@@ -128,6 +129,7 @@ typedef struct st_line {
 
 // HuSIC
 #define	_WTB_TONE_MAX	128
+#define	_ENV_MAX	128
 
 /* コマンドステータス */
 #define	PARAM_MAX		8
@@ -169,6 +171,7 @@ typedef struct {
 #define	MIN_NOTE	-3
 #define	MAX_NOTE	0x8f
 
+// 内部用
 enum {
 	_TEMPO = (MAX_NOTE+1),
 	_OCTAVE,
@@ -260,10 +263,11 @@ enum {
 
 	_PAN_ENV,
 	_RESET_IGNORE,
+	_NOISE_ENV,
 
-	_REST		= 0xfc,
-	_NOP		= 0xfe,
-	_TRACK_END	= 0xff
+_REST		= 0xfc,
+_NOP		= 0xfe,
+_TRACK_END	= 0xff
 };
 
 #define SELF_DELAY_MAX 8
@@ -292,10 +296,11 @@ enum {
 	EFTBL_LOOP = 0xfffe
 };
 
-/* commands */
+/* 実際に書き出されるコマンド */
 enum {
 	MCK_REPEAT_END = 0xa0,
 	MCK_REPEAT_ESC = 0xa1,
+	MCK_HUSIC_NOISE_ENV = 0xe5,
 	MCK_PAN_ENV = 0xe6,
 	MCK_RESET_IGNORE = 0xe7,
 	MCK_MASVOL = 0xe8,
