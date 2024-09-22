@@ -14,4 +14,5 @@ clean:
 	rm -f *.lst *.sym *.h *.inc
 
 %.hes : %.mml
-	cmd //c make_hes $<
+	echo "Compiling $<"
+	./make_hes.sh $<

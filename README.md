@@ -5,3 +5,4 @@
 - [HuSIC技術文章](docs/husic_tech.md)
 - [HuSIC開発環境](docs/develop.md)
 - [変更点](docs/changelog.txt)
+- [ライセンス](docs/license.txt)
