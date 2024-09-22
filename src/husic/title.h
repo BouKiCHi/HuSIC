@@ -1,1 +1,1 @@
-#define PRG_TITLE "HuSIC 200904"
+#define PRG_TITLE "HuSIC 240922"

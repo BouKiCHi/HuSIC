@@ -51,7 +51,7 @@ extern int xpcmdata;
 
 extern int pcewav[];
 
-/* ノイズ = 3.58MHz / 64 * ( 5bit XOR 31) */
+/* ノイズ = 3.58MHz / 64 * (5bit XOR 31) */
 
 /* o4 = 2 ,o3 = 1 ,o2 = 0 */
 
@@ -129,20 +129,20 @@ int   multi_envadr[MAX_CH];
 int   multi_envcnt[MAX_CH];
 
 
-char    lfo_sw[MAX_CH]; /* 0xff = no_effect*/
-char    lfo_cnt[MAX_CH]; /* speed cnt */
-char    lfo_ct2[MAX_CH]; /* step cnt */
-char    lfo_stp[MAX_CH]; /* step of 1level */
-char    lfo_lev[MAX_CH]; /* up/down level of 1step */
-char    lfo_step[MAX_CH];
+char  lfo_sw[MAX_CH]; /* 0xff = no_effect*/
+char  lfo_cnt[MAX_CH]; /* speed cnt */
+char  lfo_ct2[MAX_CH]; /* step cnt */
+char  lfo_stp[MAX_CH]; /* step of 1level */
+char  lfo_lev[MAX_CH]; /* up/down level of 1step */
+char  lfo_step[MAX_CH];
 
-char    noise_freq[2];
-char    noise_sw[2];
+char  noise_freq[2];
+char  noise_sw[2];
 
-int  song_track_table; /* 0 */
-int  song_bank_table; /* 7 */
-int  song_loop_table; /* 1 */
-int  song_loop_bank; /* 28*/
+int   song_track_table; /* 0 */
+int   song_bank_table; /* 7 */
+int   song_loop_table; /* 1 */
+int   song_loop_bank; /* 28*/
 
 /* PCMドライバ */
 #include "xpcmdrv.c"
@@ -206,14 +206,15 @@ int  song_loop_bank; /* 28*/
 mixvol(val)
 char val;
 {
- /* PCMチャンネルであれば違う処理をする */
- if (pcm_check(reg_ch)) {
-    poke(SND_MIX, 0xC0 | val);
-    return;
- }
+    /* PCMチャンネルであれば違う処理をする */
+    if (pcm_check(reg_ch)) {
+        poke(SND_MIX, 0xC0 | val);
+        return;
+    }
 
-  if (val)
+    if (val) {
         val |= 0x80;
+    }
 
     poke(SND_MIX, val);
 
@@ -229,7 +230,7 @@ int ch;
     poke(SND_MIX, 0x00);
 
     for(i = 0; i < 32; i++) {
-        poke( SND_WAV , i );
+        poke(SND_WAV, i);
     }
 
     poke(SND_PAN, panpod[ch]);
@@ -240,12 +241,13 @@ int ch;
 snd_chg(num)
 int num;
 {
-    int  i;
-    char  pcmpos;
+    int i;
+    char pcmpos;
 
     /* 前回との比較 */
-    if (ch_lasttone[reg_ch] == num)
+    if (ch_lasttone[reg_ch] == num) {
         return;
+    }
 
     ch_lasttone[reg_ch] = num;
 
@@ -299,7 +301,7 @@ char songno;
 
     for(i = 0; i < 6; i++) {
         reg_ch = i;
-        poke( SND_SEL, i );
+        poke(SND_SEL, i);
 
         tone_sw[i] = 0xff;
         lfo_sw[i] = 0xff;
@@ -349,7 +351,6 @@ char songno;
     init_pcmdrv();
     drv_setintr();
 }
-
 
 /*
   音量セット
@@ -405,8 +406,9 @@ int ch;
 #endasm
 
     /* カウンタ>0で待つ処理を行う */
-    if (ch_cnt[ch])
+    if (ch_cnt[ch]) {
         return;
+    }
 
     /* コマンドの取得 */
     sd = *seq_ptr;
@@ -432,41 +434,43 @@ int ch;
 ; jump to command routine
 ; sax
 
-  pha
-  sax
-  pha
-  rts
+    pha
+    sax
+    pha
+    rts
 #endasm
 
 #asm
 ; $FF : トラック終了(現在未使用)
 SEQ_FF:
 #endasm
+
         /* $FF: トラック終了 */
         chg_cbank(ch_topbank);
 
-        seq_ptr = *( song_loop_table + ( ch << 1 ) );
-        ch_nowbank = *( song_loop_bank + ch );
+        seq_ptr = *(song_loop_table + (ch << 1));
+        ch_nowbank = *(song_loop_bank + ch);
 
         chg_cbank(ch_nowbank);
 
 #asm
-        jmp endpoint
+    jmp endpoint
 #endasm
 
 #asm
 ; $FE : 音色設定
 SEQ_FE:
 #endasm
-/* $FE:音色設定 */
-   j = *(++seq_ptr);
-   seq_ptr++;
-   if (j >= 0x80) {
-      j = 0xff;
-   }
 
-   tone_sw[ch] = j;
-     reset_te(ch);
+        /* $FE:音色設定 */
+        j = *(++seq_ptr);
+        seq_ptr++;
+        if (j >= 0x80) {
+            j = 0xff;
+        }
+
+        tone_sw[ch] = j;
+        reset_te(ch);
 
 #asm
     jmp endpoint
@@ -485,32 +489,35 @@ SEQ_F9:
 ; $FD: 音量設定
 SEQ_FD:
 #endasm
-/* $FD:音量設定 引数:1 */
-    j = *(++seq_ptr); seq_ptr++;
-    ch_vol[ch] = j;
-    set_vol(ch, j);
+
+        /* $FD:音量設定 引数:1 */
+        j = *(++seq_ptr); seq_ptr++;
+        ch_vol[ch] = j;
+        set_vol(ch, j);
 
 #asm
-    jmp endpoint
+        jmp endpoint
 #endasm
 
 #asm
 ; $FC: 休符(REST)
 SEQ_FC:
 #endasm
-/* $FC:休符 */
-    j = *(++seq_ptr);
-    seq_ptr++;
 
-    mixvol(0);
+        /* $FC:休符 */
+        j = *(++seq_ptr);
+        seq_ptr++;
 
-    if (pcm_check(reg_ch)) {
-        pcm_stop(reg_ch);
-    }
+        mixvol(0);
 
-    volume_envadr[ch] = 0x00; /* envelope off */
-    ch_cnt[ch] = j;
+        if (pcm_check(reg_ch)) {
+            pcm_stop(reg_ch);
+        }
+
+        volume_envadr[ch] = 0x00; /* envelope off */
+        ch_cnt[ch] = j;
         return;
+
 #asm
     jmp endpoint
 #endasm
@@ -519,10 +526,12 @@ SEQ_FC:
 ; $FB: LFOスイッチ  引数:1
 SEQ_FB:
 #endasm
-    /* $FB: LFOスイッチ 引数:1 */
-    j = *(++seq_ptr); seq_ptr++;
-    lfo_sw[ch] = j;
-    reset_lfo(ch);
+
+        /* $FB: LFOスイッチ 引数:1 */
+        j = *(++seq_ptr); seq_ptr++;
+        lfo_sw[ch] = j;
+        reset_lfo(ch);
+
 #asm
     jmp endpoint
 #endasm
@@ -532,13 +541,14 @@ SEQ_FB:
 SEQ_FA:
 #endasm
 
- /* $FA:デチューン設定 引数:1 */
-    j = *( ++seq_ptr ); seq_ptr++;
+        /* $FA:デチューン設定 引数:1 */
+        j = *(++seq_ptr); seq_ptr++;
 
-    if (j == 0xff)
-        detune[ch] = 0x00;
-    else
-        detune[ch] = j;
+        if (j == 0xff) {
+            detune[ch] = 0x00;
+        } else {
+            detune[ch] = j;
+        }
 
 #asm
     jmp endpoint
@@ -548,12 +558,13 @@ SEQ_FA:
 ; $F8: ピッチエンベロープ
 SEQ_F8:
 #endasm
- /* $F8:ピッチエンベロープ */
 
- j = *(++seq_ptr);
- seq_ptr++;
- pitch_sw[ch] = j;
- reset_pe(ch);
+        /* $F8:ピッチエンベロープ */
+        j = *(++seq_ptr);
+        seq_ptr++;
+        pitch_sw[ch] = j;
+        reset_pe(ch);
+
 #asm
     jmp endpoint
 #endasm
@@ -562,11 +573,13 @@ SEQ_F8:
 ; $F7: ノートエンベロープ
 SEQ_F7:
 #endasm
-  /* $F7:ノートエンベロープ */
-  j = *(++seq_ptr);
-  seq_ptr++;
-  note_sw[ch] = j;
-    reset_ne(ch);
+
+        /* $F7:ノートエンベロープ */
+        j = *(++seq_ptr);
+        seq_ptr++;
+        note_sw[ch] = j;
+        reset_ne(ch);
+
 #asm
     jmp endpoint
 #endasm
@@ -575,7 +588,8 @@ SEQ_F7:
 ; $F4: ウェイト 引数:カウント
 SEQ_F4:
 #endasm
- /* $F4:ウェイト */
+
+        /* $F4:ウェイト */
         j = *(++seq_ptr); seq_ptr++;
         ch_cnt[ch] = j;
 
@@ -587,19 +601,16 @@ SEQ_F4:
 ; $F2: ノイズコマンド
 SEQ_F2:
 #endasm
-/* $F2: ノイズコマンド */
+
+        /* $F2: ノイズコマンド */
         j = *(++seq_ptr); seq_ptr++;
 
-        if (ch > 3)
-        {
-            if (j)
-            {
-                noise_sw[ ch - 4 ] = 0x01;
-            }
-            else
-            {
-                noise_sw[ ch - 4 ] = 0x00;
-                poke( SND_NOI , 0 );
+        if (ch > 3) {
+            if (j) {
+                noise_sw[ch-4] = 0x01;
+            } else {
+                noise_sw[ch-4] = 0x00;
+                poke(SND_NOI, 0);
             }
         }
 
@@ -611,11 +622,12 @@ SEQ_F2:
 ; $F1: 波形変更コマンド
 SEQ_F1:
 #endasm
- /* $F1: PCE 波形変更コマンド */
+
+    /* $F1: PCE 波形変更コマンド */
     j = *(++seq_ptr); seq_ptr++;
-    chg_cbank( ch_topbank );
+    chg_cbank(ch_topbank);
     snd_chg(j);
-    chg_cbank( ch_nowbank );
+    chg_cbank(ch_nowbank);
     tone_sw[ch] = 0xff;
 
 #asm
@@ -627,10 +639,10 @@ SEQ_F1:
 SEQ_F0:
 #endasm
 
-/* $F0: PCE パンコマンド */
+    /* $F0: PCE パンコマンド */
     j = *(++seq_ptr); seq_ptr++;
-    panpod[ ch ] = j;
-    poke( SND_PAN, j );
+    panpod[ch] = j;
+    poke(SND_PAN, j);
 
 #asm
     jmp endpoint
@@ -641,7 +653,7 @@ SEQ_F0:
 SEQ_EF:
 #endasm
 
- /* $EF: XPCM switch */
+    /* $EF: XPCM switch */
     j = *(++seq_ptr); seq_ptr++;
     pcm_switch(ch, j);
 
@@ -654,7 +666,7 @@ SEQ_EF:
 SEQ_EE:
 #endasm
 
- /* $EE: バンク切り替えコマンド  */
+    /* $EE: バンク切り替えコマンド  */
     j = *(++seq_ptr); seq_ptr++;
     seq_adrs = *(seq_ptr) | *(seq_ptr+1)<<8;
     seq_ptr = seq_adrs;
@@ -670,9 +682,11 @@ SEQ_EE:
 ; $ED: HWLFOモード(FMLFO)
 SEQ_ED:
 #endasm
- /* $ED: HW LFO mode */
+
+    /* $ED: HW LFO mode */
     j = *(++seq_ptr); seq_ptr++;
     poke(SND_LTR, j);
+
 #asm
     jmp endpoint
 #endasm
@@ -760,8 +774,7 @@ SEQ_EC:
 
  /* $EC: HW LFO(FMLFO) 周波数 */
         j = *(++seq_ptr); seq_ptr++;
-        poke( SND_LFO , j );
-
+        poke(SND_LFO, j);
 #asm
     jmp endpoint
 ; $EA: HW LFO モジュレータ周波数設定
@@ -775,8 +788,8 @@ SEQ_EA:
     /* 周波数データをレジスタにセットする */
     reg_ch = tmp;
     poke(SND_SEL, tmp);
-    poke(SND_ROU,(seq_freq[tmp] >> 8) & 0x0f);
-    poke(SND_FIN,  seq_freq[tmp] & 0xff);
+    poke(SND_ROU, (seq_freq[tmp] >> 8) & 0x0f);
+    poke(SND_FIN, seq_freq[tmp] & 0xff);
     /* キーオン */
     poke(SND_MIX, 0x80);
 
@@ -791,8 +804,8 @@ endpoint:
         if (sd == 0xa1) {
             /* repeat2 command */
             seq_ptr++;
-            if (loop_cnt[ ch ] == 1) {
-                loop_cnt[ ch ] = 0;
+            if (loop_cnt[ch] == 1) {
+                loop_cnt[ch] = 0;
 
                 seq_adrs = *(seq_ptr) | *(seq_ptr+1)<<8;
                 seq_ptr  = seq_adrs;
@@ -805,20 +818,21 @@ endpoint:
             /* repeat command */
             j = *(++seq_ptr); seq_ptr++;
 
-            tmp = *( seq_ptr++ ); /* bank */
-            seq_adrs =  *( seq_ptr ) | *( seq_ptr + 1 ) << 8;
-            seq_ptr  += 2;
+            tmp = *(seq_ptr++); /* bank */
+            seq_adrs = *(seq_ptr) | *(seq_ptr + 1) << 8;
+            seq_ptr += 2;
 
-            if (loop_cnt[ch] ==  1) {
+            if (loop_cnt[ch] == 1) {
                 loop_cnt[ch] = 0;
             } else {
-                if ( loop_cnt[ch] > 1 )
+                if (loop_cnt[ch] > 1) {
                     loop_cnt[ch]--;
-                else
+                } else {
                     loop_cnt[ch] = j-1;
+                }
 
                 seq_ptr = seq_adrs;
-                chg_cbank( tmp );
+                chg_cbank(tmp);
                 ch_nowbank = tmp;
             }
         }
@@ -843,9 +857,9 @@ endpoint:
 
     /* PCMであるかどうか？ */
     if (pcm_check(ch)) {
-        chg_cbank( ch_topbank );
+        chg_cbank(ch_topbank );
 
-        tmp = xpcmdata + ( sd << 3 );
+        tmp = xpcmdata + (sd << 3);
         pcm_play_data(ch, *(tmp), *(tmp + 2), *(tmp + 4));
 
         chg_cbank(ch_nowbank);
@@ -869,13 +883,13 @@ endpoint:
             reset_multienv(ch); /* マルチエンベロープ */
     }
 
-        /********/
+    /********/
 
-        /* バンクをトップに */
-        chg_cbank(ch_topbank);
+    /* バンクをトップに */
+    chg_cbank(ch_topbank);
 
     /* ノイズモード */
-    if (ch > 3 && noise_sw[ch - 4]) {
+    if (ch > 3 && noise_sw[ch-4]) {
         noise_freq[ch - 4] = sd & 0x1F;
         poke(SND_NOI, 0x80 | sd & 0x1F);
 
@@ -896,15 +910,16 @@ endpoint:
 
     /* デチューン */
     if (detune[ch]) {
-        if (detune[ch] & 0x80)
+        if (detune[ch] & 0x80) {
             seq_freq[ch] -= detune[ch] & 0x7f;
-        else
+        } else {
             seq_freq[ch] += detune[ch] & 0x7f;
+        }
     }
 
     /* 周波数データをレジスタにセットする */
-    poke(SND_ROU, ( seq_freq[ ch ] >> 8 ) & 0x0f);
-    poke(SND_FIN,   seq_freq[ ch ]        & 0xff);
+    poke(SND_ROU, (seq_freq[ch] >> 8) & 0x0f);
+    poke(SND_FIN, seq_freq[ch]        & 0xff);
 
     /* スラーでなければ音量設定 */
     if (!(ch_efx[ch] & EFX_SLAR)) {
@@ -969,8 +984,7 @@ int ch;
     /* 音色エンベロープ */
     if (tone_sw[ch] == 0xff) {
         tone_envadr[ch] = 0;
-    }
-    else {
+    } else {
         chg_cbank(ch_topbank);
         tone_envadr[ch] = *(sound_dat[11] + (tone_sw[ch]<<1));
         chg_cbank(ch_nowbank);
@@ -1049,7 +1063,7 @@ char x,y;
     int i,j;
 
     j = 0;
-    for( i = 0; j < x; i++) {
+    for(i = 0; j < x; i++) {
         j += y;
     }
 
@@ -1079,7 +1093,7 @@ int sch;
 
     mod = note_data[sch];
     num = val & 0x7f;
-    tmp = ( num / 12 ) << 4;
+    tmp = (num / 12) << 4;
 
     if (val & 0x80) {
         mod -= tmp;
@@ -1116,10 +1130,9 @@ int sch;
     tone_envadr[sch]++;
 
     /* エンベロープ終端 */
-    if (val == 0xff)
-    {
+    if (val == 0xff) {
         tone_envadr[sch] = *(sound_dat[12] + (tone_sw[sch] << 1));
-        val = *tone_envadr[ sch ];
+        val = *tone_envadr[sch];
         tone_envadr[sch]++;
     }
 
@@ -1156,7 +1169,7 @@ int sch;
 /********************
  ピッチエンベロープ
 *********************/
-drv_pitchenv( sch )
+drv_pitchenv(sch)
 int sch;
 {
     char val;
@@ -1174,19 +1187,18 @@ int sch;
 
     if (sch > 3 && noise_sw[sch - 4]) {
         if (val & 0x80) {
-            noise_freq[ sch - 4 ] -= val & 0x7f;
-        }
-        else {
-            noise_freq[ sch - 4 ] += val;
+            noise_freq[sch-4] -= val & 0x7f;
+        } else {
+            noise_freq[sch-4] += val;
         }
 
-        poke(SND_NOI,0x80 | noise_freq[ sch - 4 ] & 0x1f);
+        poke(SND_NOI, 0x80 | noise_freq[sch-4] & 0x1f);
     }
 
     if (val & 0x80) {
-        seq_freq[ sch ] -= val & 0x7f;
+        seq_freq[sch] -= val & 0x7f;
     } else {
-        seq_freq[ sch ] += val;
+        seq_freq[sch] += val;
     }
 }
 
@@ -1194,7 +1206,7 @@ int sch;
 /********************
  LFO
 *********************/
-drv_lfoseq( sch )
+drv_lfoseq(sch)
 int sch;
 {
     int tmp;
@@ -1206,95 +1218,87 @@ int sch;
 
     switch(lfo_step[sch]) {
         case 0x00:
-            if ( lfo_cnt[ sch ] )
-                lfo_cnt[ sch ]--;
-            else
-            {
-                lfo_step[ sch ]  = 1;
-                lfo_cnt[ sch ] = *(tmp+1);
+            if (lfo_cnt[sch]) {
+                lfo_cnt[sch]--;
+            } else {
+                lfo_step[sch]  = 1;
+                lfo_cnt[sch] = *(tmp+1);
 
-                lfo_ct2[ sch ] = divxt(*(tmp+1),*(tmp+2));
-                lfo_stp[ sch ] = lfo_ct2[ sch ];
+                lfo_ct2[sch] = divxt(*(tmp+1),*(tmp+2));
+                lfo_stp[sch] = lfo_ct2[sch];
 
-                lfo_lev[ sch ] = divxt(*(tmp+2),*(tmp+1));
+                lfo_lev[sch] = divxt(*(tmp+2),*(tmp+1));
 
-                if (!lfo_lev[ sch ])
-                    lfo_lev[ sch ] = 1;
+                if (!lfo_lev[sch])
+                    lfo_lev[sch] = 1;
 
                 /* 1step = lfo_speed/lfo_depth
                  1level = lfo_depth/lfo_speed */
-
             }
             break;
         case 0x01:
-            if (lfo_cnt[ sch ])
-                lfo_cnt[ sch ]--;
+            if (lfo_cnt[sch]) {
+                lfo_cnt[sch]--;
+            }
 
-            if (lfo_ct2[ sch ])
-                lfo_ct2[ sch ]--;
-            else
-            {
-                seq_freq[ sch ] -= lfo_lev[ sch ];
-                lfo_ct2[ sch ]   = lfo_stp[ sch ];
+            if (lfo_ct2[sch]) {
+                lfo_ct2[sch]--;
+            } else {
+                seq_freq[sch] -= lfo_lev[sch];
+                lfo_ct2[sch]   = lfo_stp[sch];
 
-                if (!lfo_cnt[ sch ])
-                {
-                    lfo_cnt[ sch ]= *( tmp + 1 );
-                    lfo_step[ sch ] = 0x02;
+                if (!lfo_cnt[sch]) {
+                    lfo_cnt[sch]= *(tmp + 1);
+                    lfo_step[sch] = 0x02;
                 }
             }
             break;
         case 0x02:
+            if (lfo_cnt[sch]) {
+                lfo_cnt[sch]--;
+            }
 
-            if (lfo_cnt[ sch ])
-                lfo_cnt[ sch ]--;
+            if (lfo_ct2[sch]) {
+                lfo_ct2[sch]--;
+            } else {
+                seq_freq[sch] += lfo_lev[sch];
+                lfo_ct2[sch]   = lfo_stp[sch];
 
-            if (lfo_ct2[ sch ])
-                lfo_ct2[ sch ]--;
-            else
-            {
-
-                seq_freq[ sch ] += lfo_lev[ sch ];
-                lfo_ct2[ sch ]   = lfo_stp[ sch ];
-
-                if (!lfo_cnt[ sch ])
-                {
-                    lfo_cnt[ sch ] = *(tmp+1);
-                    lfo_step[ sch ]  = 0x03;
+                if (!lfo_cnt[sch]) {
+                    lfo_cnt[sch] = *(tmp+1);
+                    lfo_step[sch]  = 0x03;
                 }
             }
             break;
         case 0x03:
-            if (lfo_cnt[ sch ])
-                lfo_cnt[ sch ]--;
+            if (lfo_cnt[sch]) {
+                lfo_cnt[sch]--;
+            }
 
-            if (lfo_ct2[sch])
+            if (lfo_ct2[sch]) {
                 lfo_ct2[sch]--;
-            else
-            {
+            } else {
                 seq_freq[sch] += lfo_lev[sch];
                 lfo_ct2[sch]  =  lfo_stp[sch];
 
-                if (!lfo_cnt[sch])
-                {
+                if (!lfo_cnt[sch]) {
                     lfo_cnt[sch] = *(tmp+1);
                     lfo_step[sch]  = 0x04;
                 }
             }
             break;
         case 0x04:
-            if (lfo_cnt[sch])
+            if (lfo_cnt[sch]) {
                 lfo_cnt[sch]--;
+            }
 
-            if (lfo_ct2[sch])
+            if (lfo_ct2[sch]) {
                 lfo_ct2[sch]--;
-            else
-            {
+            } else {
                 seq_freq[sch] -= lfo_lev[sch];
                 lfo_ct2[sch]   = lfo_stp[sch];
 
-                if (!lfo_cnt[sch])
-                {
+                if (!lfo_cnt[sch]) {
                     lfo_cnt[sch] = *(tmp+1);
                     lfo_step[sch]  = 0x01;
                 }
@@ -1328,9 +1332,8 @@ drv_intr()
     poke(SND_SEL, sch);
 
     /* カウンタが0の場合、次のシーケンスを実行 */
-    if (ch_cnt[sch] == 0)
-    {
-            seq_ptr = seq_pos[sch];
+    if (ch_cnt[sch] == 0) {
+        seq_ptr = seq_pos[sch];
 
         ch_nowbank = ch_bank[sch];
 
@@ -1342,7 +1345,7 @@ drv_intr()
     }
 
     /* カウンタを減算する */
-    ch_cnt[ sch ]--;
+    ch_cnt[sch]--;
 
     /* 音量エンベロープ */
     if (volume_envadr[sch]) {
@@ -1350,10 +1353,10 @@ drv_intr()
         volume_envadr[sch]++;
 
         if (val == 0xff) {
-            val = ch_vol[ sch ] & 0x7f;
-            volume_envadr[ sch ] = *(sound_dat[3] + (val << 1));
-            val = *volume_envadr[ sch ];
-            volume_envadr[ sch ]++;
+            val = ch_vol[sch] & 0x7f;
+            volume_envadr[sch] = *(sound_dat[3] + (val << 1));
+            val = *volume_envadr[sch];
+            volume_envadr[sch]++;
         }
 
         mixvol(val & 0x1f);
