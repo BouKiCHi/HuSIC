@@ -46,6 +46,11 @@ bit4 - bit0 : volume
 */
 
 
+#define SOUND_DAT_VOLUME 2
+#define SOUND_DAT_VOLUME_LP 3
+#define SOUND_DAT_NOISE_ENV 16
+#define SOUND_DAT_NOISE_ENV_LOOP 17
+
 extern int sound_dat[];
 extern int xpcmdata;
 
@@ -82,6 +87,7 @@ extern int pcewav[];
 #define RI_PE 4 /* PITCH */
 #define RI_LFO 8 /* LFO */
 #define RI_PAN 16 /* PAN */
+#define RI_NOISE 32 /* NOISE */
 
 char  reg_ch;
 
@@ -112,6 +118,7 @@ char  multienv_sw[MAX_CH];
 char  tone_sw[MAX_CH];
 char  pitch_sw[MAX_CH];
 char  note_sw[MAX_CH];
+char  noise_env_sw[MAX_CH];
 
 char  detune[MAX_CH];
 char  panpod[MAX_CH];
@@ -124,6 +131,7 @@ int   tone_envadr[MAX_CH];
 int   pitch_envadr[MAX_CH];
 int   volume_envadr[MAX_CH];
 int   note_envadr[MAX_CH];
+int   noise_envadr[MAX_CH];
 
 int   multi_envadr[MAX_CH];
 int   multi_envcnt[MAX_CH];
@@ -310,6 +318,7 @@ char songno;
         pitch_sw[i] = 0xff;
         multienv_sw[i] = 0xff;
         ch_lasttone[i] = 0xff;
+        noise_env_sw[i] = 0xff;
 
         loop_cnt[i] = 0x00;
         detune[i] = 0x00;
@@ -318,6 +327,7 @@ char songno;
         pitch_envadr[i] = 0x00;
         volume_envadr[i] = 0x00;
         multi_envadr[i] = 0x00;
+        noise_envadr[i] = 0x00;
 
         seq_pos[i] = *(song_track_table + (i<<1));
         ch_bank[i] = *(song_bank_table + i);
@@ -365,7 +375,7 @@ int ch, val;
     } else {
         val &= 0x7F;
         chg_cbank(ch_topbank);
-        volume_envadr[ch]= *(sound_dat[2] + (val << 1));
+        volume_envadr[ch]= *(sound_dat[SOUND_DAT_VOLUME] + (val << 1));
         chg_cbank(ch_nowbank);
     }
 }
@@ -768,6 +778,21 @@ SEQ_E6:
 #endasm
 
 #asm
+; $E5: ノイズエンベロープ 引数:フラグ
+SEQ_E5:
+#endasm
+
+    /* $E5: ノイズエンベロープ 引数:フラグ*/
+    j = *(++seq_ptr);
+    noise_env_sw[ch] = j;
+    reset_noise_env(ch);
+    seq_ptr++;
+#asm
+    jmp endpoint
+#endasm
+
+
+#asm
 ; $EC: HW LFO周波数
 SEQ_EC:
 #endasm
@@ -881,6 +906,9 @@ endpoint:
             reset_lfo(ch); /* LFO */
         if (!(ch_rst[ch] & RI_PAN))
             reset_multienv(ch); /* マルチエンベロープ */
+
+        if (!(ch_rst[ch] & RI_NOISE))
+            reset_noise_env(ch);
     }
 
     /********/
@@ -890,7 +918,7 @@ endpoint:
 
     /* ノイズモード */
     if (ch > 3 && noise_sw[ch-4]) {
-        noise_freq[ch - 4] = sd & 0x1F;
+        noise_freq[ch-4] = sd & 0x1F;
         poke(SND_NOI, 0x80 | sd & 0x1F);
 
         set_vol(ch, ch_vol[ch]);
@@ -947,6 +975,7 @@ endpoint:
     .proc _seqproc
 ; RTSを利用したジャンプ。RTSはアドレス+1から実行される。
 _seqproc:
+    dw   SEQ_E5 - 1
     dw   SEQ_E6 - 1
     dw   SEQ_E7 - 1
     dw   SEQ_E8 - 1
@@ -991,6 +1020,20 @@ int ch;
     }
 }
 
+/* ノイズエンベロープリセット */
+reset_noise_env(ch)
+int ch;
+{
+    /* 音色エンベロープ */
+    if (noise_env_sw[ch] == 0xff) {
+        noise_envadr[ch] = 0;
+    } else {
+        chg_cbank(ch_topbank);
+        noise_envadr[ch] = *(sound_dat[SOUND_DAT_NOISE_ENV] + (noise_env_sw[ch]<<1));
+        chg_cbank(ch_nowbank);
+    }
+}
+
 /* マルチエンベロープリセット */
 reset_multienv(ch)
 int ch;
@@ -998,7 +1041,7 @@ int ch;
     int tmp;
 
     if (multienv_sw[ch] == 0xff) {
-            multi_envadr[ch] = 0;
+        multi_envadr[ch] = 0;
     } else {
         chg_cbank(ch_topbank);
         tmp = *(sound_dat[13] + (multienv_sw[ch]<<1));
@@ -1138,6 +1181,43 @@ int sch;
 
     /* 波形変更 */
     snd_chg(val);
+}
+
+/********************
+ ノイズエンベロープ
+ *********************/
+drv_noiseenv(sch)
+int sch;
+{
+    int tmp;
+    char val;
+
+    val = *noise_envadr[sch];
+    noise_envadr[sch]++;
+
+    /* エンベロープ終端 */
+    if (val == 0xff) {
+        noise_envadr[sch] = *(sound_dat[SOUND_DAT_NOISE_ENV_LOOP] + (noise_env_sw[sch] << 1));
+        val = *noise_envadr[sch];
+        noise_envadr[sch]++;
+    }
+
+    /* 何もしない */
+    if (val == 0x00) {
+        return;
+    }
+
+    /* 波形モード */
+    if (val == 0xfe) {
+        noise_sw[sch-4] = 0x00;
+        poke(SND_NOI, 0);
+        return;
+    }
+
+    /* ノイズ変更 */
+    noise_sw[sch-4] = 0x01;
+    noise_freq[sch-4] = (val-1) & 0x1F;
+    poke(SND_NOI, 0x80 | noise_freq[sch-4] & 0x1f);
 }
 
 /********************
@@ -1314,8 +1394,8 @@ drv_intr()
 {
     int   sch;
     char  val;
-        char  snd_update;
-        int   diff;
+    char  snd_update;
+    int   diff;
 
     seq_ptr = 0xfffe;
 
@@ -1354,7 +1434,7 @@ drv_intr()
 
         if (val == 0xff) {
             val = ch_vol[sch] & 0x7f;
-            volume_envadr[sch] = *(sound_dat[3] + (val << 1));
+            volume_envadr[sch] = *(sound_dat[SOUND_DAT_VOLUME_LP] + (val << 1));
             val = *volume_envadr[sch];
             volume_envadr[sch]++;
         }
@@ -1373,6 +1453,11 @@ drv_intr()
     if (tone_envadr[sch]) {
         snd_update = 1;
         drv_toneenv(sch);
+    }
+
+    if (noise_envadr[sch]) {
+        snd_update = 1;
+        drv_noiseenv(sch);
     }
 
     if (pitch_envadr[sch]) {
